@@ -114,6 +114,10 @@ export function createBodyRig(glCanvas) {
 
     // 骨組みと網目を作る
     function build(alpha, pose) {
+        const alphaAt = (x, y) => {
+            const ix = Math.min(W - 1, Math.max(0, Math.round(x))), iy = Math.min(H - 1, Math.max(0, Math.round(y)));
+            return alpha[iy * W + ix];
+        };
         const P = (k) => ({ x: pose[k].x * W, y: pose[k].y * H, v: pose[k].v });
         const seen = (...ps) => ps.every((p) => p.v > 0.5 && p.x > -W * 0.05 && p.x < W * 1.05 && p.y > -H * 0.05 && p.y < H * 1.05);
 
@@ -143,9 +147,19 @@ export function createBodyRig(glCanvas) {
         // ひじと手首（と前腕の中ほど）が胴体と頭から十分離れている腕だけ動かす
         const headC = { x: (sh[0].x + sh[1].x) / 2, y: Math.min(sh[0].y, sh[1].y) - shoulderW * 0.9 };
         const headR = shoulderW * 0.75;
+        // 腕と体の間に、背景が見えるすき間があるか（腕から体の中心へ向かって調べる）
+        const centerX = (sh[0].x + sh[1].x) / 2;
+        const hasGap = (q) => {
+            const dir = Math.sign(centerX - q.x);
+            for (let x = q.x; Math.abs(x - centerX) > shoulderW * 0.1; x += dir * 2) {
+                if (alphaAt(x, q.y) < 40) return true;
+            }
+            return false;
+        };
         const armIsFree = (e, w) => {
             const mid = { x: (e.x + w.x) / 2, y: (e.y + w.y) / 2 };
-            return [e, mid, w].every((q) => quadDistance(q.x, q.y, torsoQuad) > shoulderW * 0.15 && Math.hypot(q.x - headC.x, q.y - headC.y) > headR);
+            const away = [e, mid, w].every((q) => quadDistance(q.x, q.y, torsoQuad) > shoulderW * 0.15 && Math.hypot(q.x - headC.x, q.y - headC.y) > headR);
+            return away && hasGap(mid) && hasGap(w);
         };
 
         // 骨：{ name, a: 付け根, b: 先, parent, side(+1: 画像の左, -1: 右) }
@@ -168,10 +182,6 @@ export function createBodyRig(glCanvas) {
         const cols = Math.ceil(W / GRID) + 1, rows = Math.ceil(H / GRID) + 1;
         const vid = new Int32Array(cols * rows).fill(-1);
         const pos = [], uv = [], idx = [];
-        const alphaAt = (x, y) => {
-            const ix = Math.min(W - 1, Math.max(0, Math.round(x))), iy = Math.min(H - 1, Math.max(0, Math.round(y)));
-            return alpha[iy * W + ix];
-        };
         const vertex = (c, r) => {
             const k = r * cols + c;
             if (vid[k] < 0) {
@@ -211,8 +221,15 @@ export function createBodyRig(glCanvas) {
                     // 手先・足先は骨の先より外側の肉（手のひら、足）も付いていくように
                     if (bone.tip) d = Math.min(d, segmentDistance(x, y, bone.b, { x: bone.b.x + (bone.b.x - bone.a.x) * 0.5, y: bone.b.y + (bone.b.y - bone.a.y) * 0.5 }));
                 }
+                // 腕・脚は、その太さくらいの範囲だけ引っぱる（腰の横の服などを巻き込まない）
+                if (bone.name !== 'torso') {
+                    const limbR = shoulderW * (bone.name.startsWith('thigh') || bone.name.startsWith('shin') ? 0.32 : 0.32);
+                    if (d > limbR) return 0;
+                }
                 return 1 / Math.pow(Math.max(d, 1) / reach + 0.05, 6);
             });
+            // どの手足からも遠い点は胴体に付ける
+            if (scores.every((sc, i) => i === 0 || sc === 0)) scores[0] = Math.max(scores[0], 1e-6);
             // 上位2本の骨だけ使う
             const order = scores.map((s, i) => i).sort((p, q) => scores[q] - scores[p]);
             const s0 = scores[order[0]], s1 = scores[order[1]] || 0;
@@ -222,12 +239,42 @@ export function createBodyRig(glCanvas) {
             boneW[v * 2 + 1] = s1 / (s0 + s1);
         }
 
+        // 腕と胴体（脚どうし）のすき間にまたがる三角形を除く。
+        // 違う骨に付いた頂点をつなぐ三角形の中心が透明なら、それは体の外（すき間）なので、
+        // 残すと手足を動かしたときにマントのように伸びてしまう
+        // 左右の脚どうしの境目（股の下）は切り離す。つないだままだと、脚を動かしたときにゴムのように伸びる
+        // （体にくっついている腕は、そもそも動かさない）
+        const legOf = (i) => {
+            const n = bones[i].name;
+            return n.startsWith('thigh') || n.startsWith('shin') ? n.slice(-1) : null;
+        };
+        function isSeam(set) {
+            const legs = new Set([...set].map(legOf).filter(Boolean));
+            return legs.size > 1;
+        }
+
+        function keepTris(list) {
+            const out = [];
+            for (let t = 0; t < list.length; t += 3) {
+                const a = list[t], b = list[t + 1], c = list[t + 2];
+                const ba = boneIdx[a * 2], bb = boneIdx[b * 2], bc = boneIdx[c * 2];
+                if (ba !== bb || bb !== bc) {
+                    const cx = (pos[a * 2] + pos[b * 2] + pos[c * 2]) / 3;
+                    const cy = (pos[a * 2 + 1] + pos[b * 2 + 1] + pos[c * 2 + 1]) / 3;
+                    if (alphaAt(cx, cy) < 40) continue;
+                    if (isSeam(new Set([ba, bb, bc]))) continue;
+                }
+                out.push(a, b, c);
+            }
+            return out;
+        }
+
         return {
             bones,
             hipC,
             rest: new Float32Array(pos),
             uv: new Float32Array(uv),
-            idx: new Uint16Array(idx),
+            idx: new Uint16Array(keepTris(idx)),
             boneIdx,
             boneW,
             out: new Float32Array(pos.length),

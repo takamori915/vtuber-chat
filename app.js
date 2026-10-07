@@ -1,5 +1,5 @@
-import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=15';
-import { createBodyRig, danceAngles } from './body-rig.js?v=15';
+import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=21';
+import { createBodyRig, danceAngles } from './body-rig.js?v=21';
 import { createDanceVideoPlayer, saveDanceVideo, loadDanceVideo, deleteDanceVideo } from './dance-video.js?v=14';
 
 // ===== 設定・定数 =====
@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS = {
     tts: false,
     // 表示するキャラ：'preset'（オリジナルキャラ）/ 'illust'（イラストのルミ）/ 'photo'（写真から作ったキャラ）
     characterMode: 'preset',
+    presetFrame: 'upper', // 'upper'（へそから上）| 'full'（全身）
     presetBody: 'mini', // 'mini' | 'normal'
     presetOutfit: 'casual', // 'casual' | 'future'
     ttsVoice: '', // voiceURI。空なら自動で選ぶ
@@ -1599,10 +1600,10 @@ photoClearBtn.addEventListener('click', () => {
 // ===== 表示するキャラの切り替え =====
 // オリジナルキャラは、切り抜きと顔・体の位置をあらかじめ処理した画像（characters/）を読み込む
 const presetCache = {};
-function loadPreset(body, outfit) {
-    const id = `${body}-${outfit}`;
+function loadPreset(frame, body, outfit) {
+    const id = `${frame}-${body}-${outfit}`;
     if (!presetCache[id]) {
-        presetCache[id] = fetch(`characters/${id}.json?v=1`)
+        presetCache[id] = fetch(`characters/${id}.json?v=2`)
             .then((r) => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 return r.json();
@@ -1623,7 +1624,7 @@ async function applyCharacter() {
     }
     if (settings.characterMode === 'illust') return applyPhoto(null);
     try {
-        await applyPhoto(await loadPreset(settings.presetBody, settings.presetOutfit));
+        await applyPhoto(await loadPreset(settings.presetFrame || 'upper', settings.presetBody, settings.presetOutfit));
     } catch (err) {
         console.warn('キャラクターを読み込めませんでした', err);
         await applyPhoto(null);
