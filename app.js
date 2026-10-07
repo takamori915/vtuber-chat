@@ -1641,7 +1641,7 @@ const presetCache = {};
 function loadPreset(frame, body, outfit) {
     const id = `${frame}-${body}-${outfit}`;
     if (!presetCache[id]) {
-        presetCache[id] = fetch(`characters/${id}.json?v=3`)
+        presetCache[id] = fetch(`characters/${id}.json?v=4`)
             .then((r) => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 return r.json();
