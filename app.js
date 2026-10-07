@@ -1776,7 +1776,12 @@ document.getElementById('clearHistoryBtn').addEventListener('click', () => {
 
 // ===== 起動 =====
 applyAppearance(settings.appearance);
-applyCharacter();
+{
+    // 表示するキャラの準備ができてから見せる（通信が遅くても最大 8 秒で表示する）
+    const reveal = () => document.getElementById('characterWrap').classList.remove('is-loading');
+    applyCharacter().finally(reveal);
+    setTimeout(reveal, 8000);
+}
 loadDanceVideo().then((r) => r && character.danceVideo.setRecord(r)).catch((err) => console.warn('踊りの動画を読み込めませんでした', err));
 renderHistory();
 if (!settings.apiKey) {

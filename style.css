@@ -121,6 +121,9 @@ button { font: inherit; cursor: pointer; }
     width: 69%;    /* 276/400 */
     height: 60.8%; /* 316/520 */
 }
+/* 読み込み中は隠し、表示するキャラの準備ができてからふわっと出す（前のキャラが一瞬見えないように） */
+.character-wrap { transition: opacity 0.25s ease; }
+.character-wrap.is-loading { opacity: 0; }
 .character-wrap.react .photo-layer { animation: react 0.45s ease-out; }
 .photo-layer canvas { filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.3)); } /* 背景から少し浮かせる */
 /* 踊るときの動画：チャット欄より上に収まるように置く */
