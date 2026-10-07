@@ -824,12 +824,22 @@ const appearanceStatus = document.getElementById('appearanceStatus');
 
 const APPEARANCE_STATUS_DEFAULT = appearanceStatus.textContent;
 
-function setAppearanceStatus(text, isError = false) {
+function setAppearanceStatus(text, isError = false, { notice = false } = {}) {
     appearanceStatus.textContent = text;
     appearanceStatus.classList.toggle('error', isError);
+    appearanceStatus.classList.toggle('notice', notice || isError);
+    if (notice || isError) {
+        // 同じメッセージでも気づけるよう、毎回アニメーションし直す
+        appearanceStatus.classList.remove('flash');
+        void appearanceStatus.offsetWidth;
+        appearanceStatus.classList.add('flash');
+        appearanceStatus.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
 }
 
 appearanceApplyBtn.addEventListener('click', async () => {
+    // スマホではキーボードを閉じて、結果のメッセージが隠れないようにする
+    appearancePrompt.blur();
     const request = appearancePrompt.value.trim();
     // 保存前に入力したキーでも試せるように、入力欄の値を優先する
     const apiKey = apiKeyInput.value.trim() || settings.apiKey;
@@ -843,7 +853,7 @@ appearanceApplyBtn.addEventListener('click', async () => {
     }
     appearanceApplyBtn.disabled = true;
     appearanceResetBtn.disabled = true;
-    setAppearanceStatus('考え中…');
+    setAppearanceStatus('考え中…', false, { notice: true });
     character.setEmotion('thinking');
     try {
         const { appearance, summary } = await generateAppearance(request, apiKey);
@@ -851,7 +861,7 @@ appearanceApplyBtn.addEventListener('click', async () => {
         saveJSON(STORAGE_KEYS.settings, settings);
         applyAppearance(appearance);
         character.setEmotion('happy', { holdMs: 5000 });
-        setAppearanceStatus(`変更しました！${summary ? `「${summary}」` : ''}`);
+        setAppearanceStatus(`変更しました！${summary ? `「${summary}」` : ''}`, false, { notice: true });
         appearancePrompt.value = '';
     } catch (err) {
         console.error(err);
@@ -867,7 +877,7 @@ appearanceResetBtn.addEventListener('click', () => {
     settings.appearance = null;
     saveJSON(STORAGE_KEYS.settings, settings);
     applyAppearance(null);
-    setAppearanceStatus('最初の見た目に戻しました。');
+    setAppearanceStatus('最初の見た目に戻しました。', false, { notice: true });
 });
 
 document.getElementById('clearHistoryBtn').addEventListener('click', () => {

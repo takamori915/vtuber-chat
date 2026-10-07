@@ -366,7 +366,22 @@ button { font: inherit; cursor: pointer; }
 .appearance-actions .primary { background: var(--accent); border-color: var(--accent); font-weight: 700; }
 .appearance-actions button:disabled { opacity: 0.5; cursor: default; }
 .settings .appearance .note { margin: 0 0 10px; }
-.settings .appearance .note.error { color: #ff9fb2; }
+.settings .appearance .note.notice {
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(126, 240, 255, 0.12);
+    color: var(--text);
+    font-size: 13px;
+}
+.settings .appearance .note.error { background: rgba(255, 77, 109, 0.22); color: #ffd4dc; }
+.settings .appearance .note.flash { animation: flash 0.5s ease; }
+@keyframes flash {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-5px); }
+    40% { transform: translateX(5px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+}
 .dialog-actions { display: flex; gap: 8px; align-items: center; }
 .dialog-actions .spacer { flex: 1; }
 .dialog-actions button {
