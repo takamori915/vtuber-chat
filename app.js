@@ -34,17 +34,17 @@ const DEFAULT_SETTINGS = {
 
 // キャラクターの見た目（AIが設定画面のプロンプトから決める）
 const DEFAULT_APPEARANCE = {
-    hairStyle: 'twintails',
-    hairColor: '#a48af5',
-    hairTipColor: '#f4a9d8',
+    hairStyle: 'long',
+    hairColor: '#e8b93c',
+    hairTipColor: '#f3d27a',
     eyeColor: '#4f6fd8',
     skinColor: '#fff1ea',
     outfitColor: '#34305e',
     collarColor: '#fdfbff',
     accentColor: '#ff6fa5',
-    catEars: true,
+    catEars: false,
     earColor: '#fdf7ff',
-    hairRibbons: true,
+    hairRibbons: false, // ツインテールの結び目なので、ストレートでは付けない
     hairpin: true,
     ahoge: true,
 };
