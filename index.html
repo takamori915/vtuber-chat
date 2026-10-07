@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>AI VTuber Chat</title>
     <meta name="theme-color" content="#1b1530">
-    <link rel="stylesheet" href="style.css?v=10">
+    <link rel="stylesheet" href="style.css?v=11">
     <script type="importmap">
     {
         "imports": {
@@ -24,7 +24,9 @@
 
         <!-- キャラクター -->
         <div class="character-wrap" id="characterWrap">
-            <!-- 写真キャラ（イラストの代わりに表示。エフェクトや猫耳はこの上のSVGに描く） -->
+          <!-- 踊るときはこの箱ごと動かす -->
+          <div class="dance-box" id="danceBox">
+            <!-- 写真キャラ（イラストの代わりに表示） -->
             <div class="photo-layer" id="photoLayer" hidden>
                 <div class="photo-move" id="photoMove">
                     <canvas id="photoCanvas" width="552" height="632"></canvas>
@@ -253,6 +255,7 @@
                     </g>
                 </g>
             </svg>
+          </div>
         </div>
 
         <!-- 配信風ヘッダー -->
@@ -319,9 +322,9 @@
                 <div class="crop" id="cropArea" hidden>
                     <canvas id="cropCanvas" width="552" height="632"></canvas>
                     <label class="range">拡大
-                        <input type="range" id="cropZoom" min="1" max="4" step="0.01" value="1">
+                        <input type="range" id="cropZoom" min="0.4" max="4" step="0.01" value="1">
                     </label>
-                    <p class="note">写真をドラッグして、顔が枠の中に入るように調整してください。</p>
+                    <p class="note">写真をドラッグして、顔が枠の中に入るように調整してください。全身を入れたいときは「拡大」を左にして縮小してください。</p>
                     <label class="check"><input type="checkbox" id="cutoutCheck" checked> 背景を消して人物だけにする</label>
                     <div class="appearance-actions">
                         <button type="button" id="cropCancelBtn">やめる</button>
@@ -375,6 +378,6 @@
         </form>
     </dialog>
 
-    <script type="module" src="app.js?v=10"></script>
+    <script type="module" src="app.js?v=11"></script>
 </body>
 </html>

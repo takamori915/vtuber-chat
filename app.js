@@ -1,4 +1,4 @@
-import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=10';
+import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=11';
 
 // ===== 設定・定数 =====
 const STORAGE_KEYS = {
@@ -82,6 +82,51 @@ const character = (() => {
     const mouthOpen = svg.querySelector('.mouth-open');
     const wrap0 = document.getElementById('characterWrap');
     const photoMove = document.getElementById('photoMove');
+    const danceBox = document.getElementById('danceBox');
+    let danceStart = -1;
+    let danceEnd = -1;
+
+    // 踊る（続けて頼まれたら延長する）
+    function dance(ms = 8000) {
+        const now = performance.now();
+        if (danceEnd < 0 || now > danceEnd) danceStart = now;
+        danceEnd = now + ms;
+        setEmotion('happy', { holdMs: ms + 1000 });
+    }
+
+    // 踊りの動き：120BPMで「左右ステップ → ジャンプとひねり → くるっと回転」を繰り返す
+    function danceTransform(now) {
+        if (danceEnd < 0) return '';
+        if (now > danceEnd + 500) {
+            danceEnd = -1;
+            return '';
+        }
+        const el = (now - danceStart) / 1000;
+        const env = clamp(Math.min(el / 0.4, (danceEnd + 500 - now) / 500), 0, 1); // 始めと終わりはなめらかに
+        const b = el * 2; // 拍
+        const bounce = Math.abs(Math.sin(b * Math.PI));
+        const part = Math.floor(b / 8) % 3;
+        let x = 0, y = 0, r = 0, sx = 1, sy = 1;
+        if (part === 0) {
+            x = Math.sin((b * Math.PI) / 2) * 24;
+            r = Math.sin((b * Math.PI) / 2) * 7;
+            y = -bounce * 14;
+        } else if (part === 1) {
+            y = -bounce * 30;
+            r = Math.sin(b * Math.PI) * 10;
+            const land = 1 - bounce; // 着地でちょっとつぶれる
+            sx = 1 + land * 0.05;
+            sy = 1 - land * 0.05;
+        } else {
+            sx = Math.cos(((b % 8) / 8) * Math.PI * 2); // 横に回って見えるように
+            y = -bounce * 12;
+        }
+        const k = wrap0.clientWidth / 400;
+        x *= env; y *= env; r *= env;
+        sx = 1 + (sx - 1) * env;
+        sy = 1 + (sy - 1) * env;
+        return `translate(${x * k}px, ${y * k}px) rotate(${r}deg) scale(${sx}, ${sy})`;
+    }
     const photoRenderer = createPhotoRenderer(document.getElementById('photoCanvas'));
 
     let emotion = 'neutral';
@@ -227,6 +272,8 @@ const character = (() => {
             photoMove.style.transform = `translate(${tx * 4 * k}px, ${(ty * 2 + bob - lift) * k}px) rotate(${rot}deg)`;
         }
 
+        danceBox.style.transform = danceTransform(now);
+
         requestAnimationFrame(frame);
     }
 
@@ -236,6 +283,7 @@ const character = (() => {
     return {
         setEmotion,
         setSpeaking,
+        dance,
         setVoiceLevel(v) { voiceLevel = v; },
         photo: photoRenderer,
         lookAt,
@@ -249,7 +297,7 @@ function clamp(v, min, max) {
 
 // ===== 感情タグのストリーミングパーサー =====
 // 応答中の [happy] のようなタグを取り除き、表情イベントに変換する
-const TAG_RE = /^\[(neutral|happy|sad|angry|surprised|thinking|shy)\]/;
+const TAG_RE = /^\[(neutral|happy|sad|angry|surprised|thinking|shy|dance)\]/;
 
 function createTagParser(onText, onEmotion) {
     let buf = '';
@@ -315,7 +363,8 @@ function createTypewriter(bubble, { onDone } = {}) {
         }
         const item = queue.shift();
         if (item.type === 'emotion') {
-            character.setEmotion(item.name);
+            if (item.name === 'dance') character.dance();
+            else character.setEmotion(item.name);
         } else {
             character.setSpeaking(true);
             shown += item.ch;
@@ -623,6 +672,10 @@ function buildSystemPrompt() {
         '返答の先頭に必ず表情タグを1つ付け、話の途中で気持ちが変わったらその位置にも付けてください。',
         '使えるタグ: [neutral] ふつう / [happy] 嬉しい・楽しい / [sad] 悲しい・残念 / [angry] 怒り・ぷんぷん / [surprised] 驚き / [thinking] 考え中・疑問 / [shy] 照れ・恥ずかしい',
         '例: [surprised]えっ、本当に！？[happy]すごいね、おめでとう！',
+        '',
+        '## 踊る',
+        '踊ってと頼まれたときや、嬉しくて踊りたくなったときは、返答に [dance] を入れると画面のキャラクターが踊ります（表情タグと一緒に使えます）。',
+        '例: [happy][dance]いくよー！それっ、ワン・ツー♪',
     ].join('\n');
 }
 
@@ -843,6 +896,10 @@ async function generateAppearance(request, apiKey) {
 
 // ===== デモモード（APIキー未設定時） =====
 const DEMO_RULES = [
+    { re: /踊|おど(って|る|ろ)|ダンス|dance/i, replies: [
+        '[happy][dance]いくよー！それっ、ワン・ツー♪',
+        '[happy][dance]踊るの大好き！見ててね〜♪',
+    ] },
     { re: /こんにち|こんばん|おはよ|はじめまして|やっほ|hello|hi\b/i, replies: [
         '[happy]やっほー！来てくれてありがとう！今日はどんな一日だった？',
         '[happy]いらっしゃい！ゆっくりしていってね〜！',
@@ -1337,8 +1394,9 @@ const crop = {
         const s = this.baseScale() * this.zoom;
         const halfW = cropCanvas.width / 2 / (this.img.naturalWidth * s);
         const halfH = cropCanvas.height / 2 / (this.img.naturalHeight * s);
-        this.cx = clamp(this.cx, halfW, 1 - halfW);
-        this.cy = clamp(this.cy, halfH, 1 - halfH);
+        // 縮小して枠より小さくなった向きは中央に固定する
+        this.cx = halfW >= 0.5 ? 0.5 : clamp(this.cx, halfW, 1 - halfW);
+        this.cy = halfH >= 0.5 ? 0.5 : clamp(this.cy, halfH, 1 - halfH);
     },
     draw(canvas = cropCanvas) {
         const g = canvas.getContext('2d');
