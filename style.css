@@ -96,7 +96,8 @@ button { font: inherit; cursor: pointer; }
     transform-box: fill-box;
     transform-origin: center;
 }
-.character .head { transform-box: fill-box; transform-origin: 50% 90%; }
+/* 首の付け根を回転の中心にする（ツインテールを含めても揺れが大きくならないように） */
+.character .head { transform-box: view-box; transform-origin: 200px 330px; }
 .character .body { transform-origin: 50% 100%; animation: breathe 3.6s ease-in-out infinite; }
 @keyframes breathe {
     0%, 100% { transform: scale(1, 1); }
@@ -368,4 +369,30 @@ button { font: inherit; cursor: pointer; }
         --chat-h: calc(var(--app-h, 100dvh) * 0.46);
         --char-top: 44px;
     }
-    .bg-window, 
+    .bg-window { display: none; }
+    /* 顔（SVGの上から約2/3）がチャット欄の上に収まる大きさにする */
+    .character-wrap {
+        top: var(--char-top);
+        bottom: auto;
+        height: calc((var(--app-h, 100dvh) - var(--chat-h) - var(--char-top)) / 0.7);
+        transition: height 0.2s ease, top 0.2s ease;
+    }
+    .chat {
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        width: 100%;
+        height: var(--chat-h);
+        border-radius: 18px 18px 0 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+    }
+    /* キーボード表示中：ヘッダーを隠し、チャット欄を少し広げる */
+    .kb-open .topbar { display: none; }
+    .kb-open .stage {
+        --chat-h: calc(var(--app-h, 100dvh) * 0.55);
+        --char-top: 4px;
+    }
+}

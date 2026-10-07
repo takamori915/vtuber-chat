@@ -27,148 +27,213 @@
             <svg id="character" class="character emotion-neutral" viewBox="0 0 400 520" aria-label="キャラクター">
                 <defs>
                     <linearGradient id="hairGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stop-color="#b8a6ff"/>
-                        <stop offset="1" stop-color="#7a64e0"/>
+                        <stop offset="0" stop-color="#d4c6ff"/>
+                        <stop offset=".55" stop-color="#a48af5"/>
+                        <stop offset="1" stop-color="#f4a9d8"/>
                     </linearGradient>
-                    <linearGradient id="hairHi" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0" stop-color="#ffffff" stop-opacity=".55"/>
-                        <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+                    <linearGradient id="hairFront" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#cbbcff"/>
+                        <stop offset="1" stop-color="#9a7ff0"/>
                     </linearGradient>
-                    <radialGradient id="irisGrad" cx=".5" cy=".35" r=".7">
-                        <stop offset="0" stop-color="#7ef0ff"/>
-                        <stop offset=".55" stop-color="#3b8fe0"/>
-                        <stop offset="1" stop-color="#23367a"/>
+                    <linearGradient id="hairShade" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#8a6fe0"/>
+                        <stop offset="1" stop-color="#d98cc4"/>
+                    </linearGradient>
+                    <linearGradient id="irisGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#3a2e8c"/>
+                        <stop offset=".45" stop-color="#4f6fd8"/>
+                        <stop offset=".8" stop-color="#7fd9ff"/>
+                        <stop offset="1" stop-color="#c6f4ff"/>
+                    </linearGradient>
+                    <radialGradient id="blushGrad">
+                        <stop offset="0" stop-color="#ff8fb4" stop-opacity=".95"/>
+                        <stop offset="1" stop-color="#ff8fb4" stop-opacity="0"/>
                     </radialGradient>
-                    <linearGradient id="outfitGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stop-color="#2d2a4a"/>
-                        <stop offset="1" stop-color="#1c1a33"/>
+                    <linearGradient id="skinGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#fff1ea"/>
+                        <stop offset="1" stop-color="#ffe6dc"/>
                     </linearGradient>
+                    <linearGradient id="outfitGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#34305e"/>
+                        <stop offset="1" stop-color="#211e3f"/>
+                    </linearGradient>
+                    <clipPath id="eyeClip">
+                        <ellipse rx="23" ry="28"/>
+                    </clipPath>
                 </defs>
 
                 <g id="body" class="body">
-                    <!-- 後ろ髪 -->
-                    <path class="hair-back" fill="url(#hairGrad)" d="M95 170 C80 260 70 360 95 450 L150 430 C140 360 140 300 150 250 Z"/>
-                    <path class="hair-back" fill="url(#hairGrad)" d="M305 170 C320 260 330 360 305 450 L250 430 C260 360 260 300 250 250 Z"/>
+                    <!-- 胴体（セーラー服） -->
+                    <path fill="url(#outfitGrad)" d="M120 520 C118 440 148 378 200 372 C252 378 282 440 280 520 Z"/>
+                    <path fill="#ffe6dc" d="M184 316 L216 316 L218 372 C207 381 193 381 182 372 Z"/>
+                    <path fill="#f3cbbd" d="M184 322 Q200 340 216 322 L216 338 Q200 350 184 338 Z"/>
+                    <path fill="#fdfbff" d="M150 380 L200 432 L250 380 L272 398 L200 470 L128 398 Z"/>
+                    <path fill="none" stroke="#ff8fb8" stroke-width="3" d="M138 400 L200 462 L262 400"/>
+                    <!-- 胸元のリボン -->
+                    <g transform="translate(200 430)">
+                        <path fill="#ff6fa5" d="M0 0 L-24 -12 Q-30 0 -24 12 Z M0 0 L24 -12 Q30 0 24 12 Z"/>
+                        <path fill="#ff6fa5" d="M-4 2 L-12 30 L-2 24 Z M4 2 L12 30 L2 24 Z"/>
+                        <circle r="6" fill="#ff8fb8"/>
+                    </g>
 
-                    <!-- 胴体 -->
-                    <path fill="url(#outfitGrad)" d="M110 520 C110 430 140 380 200 375 C260 380 290 430 290 520 Z"/>
-                    <path fill="#f6dccf" d="M180 330 L220 330 L222 380 C210 392 190 392 178 380 Z"/>
-                    <path fill="#ffffff" d="M165 385 L200 420 L235 385 L245 395 L200 450 L155 395 Z" opacity=".95"/>
-                    <path fill="#ff6fa5" d="M188 412 L200 425 L212 412 L206 440 L194 440 Z"/>
-                    <circle cx="140" cy="470" r="6" fill="#7ef0ff" opacity=".8"/>
-                    <circle cx="260" cy="470" r="6" fill="#7ef0ff" opacity=".8"/>
-
-                    <!-- 頭 -->
+                    <!-- 頭（後ろ髪・ツインテールも一緒に動く） -->
                     <g id="head" class="head">
+                        <!-- 後ろ髪 -->
+                        <path class="hair-back" fill="url(#hairGrad)" d="M110 205 C98 125 150 76 200 76 C250 76 302 125 290 205 C292 250 288 282 280 304 L266 288 L256 312 L240 294 Q200 306 160 294 L144 312 L134 288 L120 304 C112 282 108 250 110 205 Z"/>
+                        <!-- ツインテール -->
+                        <path class="hair-back" fill="url(#hairGrad)" d="M114 150 C68 168 52 236 66 296 C78 348 52 400 74 470 C80 440 100 418 104 386 C110 340 92 300 104 256 C112 226 124 196 134 178 Z"/>
+                        <path class="hair-back" fill="url(#hairGrad)" d="M286 150 C332 168 348 236 334 296 C322 348 348 400 326 470 C320 440 300 418 296 386 C290 340 308 300 296 256 C288 226 276 196 266 178 Z"/>
+                        <path fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="3" stroke-linecap="round" d="M86 220 C76 270 84 320 76 380 M314 220 C324 270 316 320 324 380"/>
+
+                        <!-- 猫耳カチューシャ -->
+                        <path fill="#fdf7ff" d="M128 118 L116 50 L178 88 Z"/>
+                        <path fill="#ffb7d3" d="M134 108 L126 66 L166 90 Z"/>
+                        <path fill="#fdf7ff" d="M272 118 L284 50 L222 88 Z"/>
+                        <path fill="#ffb7d3" d="M266 108 L274 66 L234 90 Z"/>
+
                         <!-- 顔 -->
-                        <path fill="#fde6da" d="M125 200 C125 120 160 90 200 90 C240 90 275 120 275 200 C275 270 240 330 200 340 C160 330 125 270 125 200 Z"/>
-                        <!-- 耳 -->
-                        <ellipse cx="124" cy="215" rx="10" ry="18" fill="#f6d2c3"/>
-                        <ellipse cx="276" cy="215" rx="10" ry="18" fill="#f6d2c3"/>
+                        <path fill="url(#skinGrad)" d="M118 200 C118 132 154 98 200 98 C246 98 282 132 282 200 C282 262 258 306 224 324 Q200 336 176 324 C142 306 118 262 118 200 Z"/>
 
                         <!-- 頬 -->
                         <g class="blush">
-                            <ellipse cx="157" cy="262" rx="18" ry="9" fill="#ff8fb1"/>
-                            <ellipse cx="243" cy="262" rx="18" ry="9" fill="#ff8fb1"/>
+                            <ellipse cx="146" cy="276" rx="22" ry="12" fill="url(#blushGrad)"/>
+                            <ellipse cx="254" cy="276" rx="22" ry="12" fill="url(#blushGrad)"/>
                             <g class="blush-lines" stroke="#ff6f9b" stroke-width="2" stroke-linecap="round">
-                                <line x1="148" y1="258" x2="144" y2="266"/><line x1="156" y1="258" x2="152" y2="266"/><line x1="164" y1="258" x2="160" y2="266"/>
-                                <line x1="236" y1="258" x2="232" y2="266"/><line x1="244" y1="258" x2="240" y2="266"/><line x1="252" y1="258" x2="248" y2="266"/>
+                                <line x1="138" y1="271" x2="134" y2="279"/><line x1="146" y1="271" x2="142" y2="279"/><line x1="154" y1="271" x2="150" y2="279"/>
+                                <line x1="250" y1="271" x2="246" y2="279"/><line x1="258" y1="271" x2="254" y2="279"/><line x1="266" y1="271" x2="262" y2="279"/>
                             </g>
                         </g>
+
+                        <!-- 鼻 -->
+                        <path d="M199 266 Q201 269 203 267" stroke="#e7a99a" stroke-width="2" fill="none" stroke-linecap="round"/>
 
                         <!-- 目 -->
                         <g id="eyes" class="eyes">
-                            <g class="eye eye-l" transform="translate(163 222)">
+                            <g class="eye eye-l" transform="translate(158 234)">
                                 <g class="eye-open">
-                                    <ellipse rx="21" ry="25" fill="#fff"/>
-                                    <g class="pupil">
-                                        <ellipse rx="15" ry="20" fill="url(#irisGrad)"/>
-                                        <ellipse rx="7" ry="10" fill="#141433"/>
-                                        <circle cx="-5" cy="-9" r="5" fill="#fff"/>
-                                        <circle cx="5" cy="7" r="2.5" fill="#fff" opacity=".8"/>
+                                    <ellipse rx="23" ry="28" fill="#fff"/>
+                                    <g clip-path="url(#eyeClip)">
+                                        <g class="pupil">
+                                            <ellipse cy="2" rx="18" ry="24" fill="url(#irisGrad)"/>
+                                            <ellipse cy="-3" rx="8.5" ry="12" fill="#1c1747"/>
+                                            <ellipse cx="-7" cy="-11" rx="6.5" ry="7.5" fill="#fff"/>
+                                            <circle cx="7" cy="11" r="3.2" fill="#fff" opacity=".9"/>
+                                            <path d="M5 -14 l1.2 3 l3 1.2 l-3 1.2 l-1.2 3 l-1.2 -3 l-3 -1.2 l3 -1.2 Z" fill="#fff"/>
+                                        </g>
                                     </g>
-                                    <path d="M-24 -22 Q0 -36 24 -20" stroke="#2b2350" stroke-width="5" fill="none" stroke-linecap="round"/>
+                                    <path d="M-27 -10 Q-16 -32 6 -31 Q20 -30 26 -18" stroke="#2a2152" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+                                    <path d="M-26 -11 L-33 -17 M-24 -16 L-30 -24" stroke="#2a2152" stroke-width="3" stroke-linecap="round"/>
+                                    <path d="M-12 27 Q0 30 10 27" stroke="#2a2152" stroke-width="2" fill="none" stroke-linecap="round" opacity=".5"/>
                                 </g>
-                                <path class="eye-closed" d="M-20 2 Q0 14 20 2" stroke="#2b2350" stroke-width="4.5" fill="none" stroke-linecap="round"/>
-                                <path class="eye-happy" d="M-19 6 Q0 -14 19 6" stroke="#2b2350" stroke-width="5" fill="none" stroke-linecap="round"/>
-                                <path class="eye-angry" d="M-20 -4 L20 6 M-18 -2 Q0 22 18 6" stroke="#2b2350" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+                                <g class="eye-closed" stroke="#2a2152" fill="none" stroke-linecap="round">
+                                    <path d="M-23 2 Q0 16 23 2" stroke-width="5"/>
+                                    <path d="M-22 4 L-29 2" stroke-width="3"/>
+                                </g>
+                                <path class="eye-happy" d="M-21 8 Q0 -16 21 8" stroke="#2a2152" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+                                <path class="eye-angry" d="M-22 -6 L22 4 M-20 -2 Q0 24 20 4" stroke="#2a2152" stroke-width="5" fill="none" stroke-linecap="round"/>
                             </g>
-                            <g class="eye eye-r" transform="translate(237 222)">
+                            <g class="eye eye-r" transform="translate(242 234)">
                                 <g class="eye-open">
-                                    <ellipse rx="21" ry="25" fill="#fff"/>
-                                    <g class="pupil">
-                                        <ellipse rx="15" ry="20" fill="url(#irisGrad)"/>
-                                        <ellipse rx="7" ry="10" fill="#141433"/>
-                                        <circle cx="-5" cy="-9" r="5" fill="#fff"/>
-                                        <circle cx="5" cy="7" r="2.5" fill="#fff" opacity=".8"/>
+                                    <ellipse rx="23" ry="28" fill="#fff"/>
+                                    <g clip-path="url(#eyeClip)">
+                                        <g class="pupil">
+                                            <ellipse cy="2" rx="18" ry="24" fill="url(#irisGrad)"/>
+                                            <ellipse cy="-3" rx="8.5" ry="12" fill="#1c1747"/>
+                                            <ellipse cx="-7" cy="-11" rx="6.5" ry="7.5" fill="#fff"/>
+                                            <circle cx="7" cy="11" r="3.2" fill="#fff" opacity=".9"/>
+                                            <path d="M5 -14 l1.2 3 l3 1.2 l-3 1.2 l-1.2 3 l-1.2 -3 l-3 -1.2 l3 -1.2 Z" fill="#fff"/>
+                                        </g>
                                     </g>
-                                    <path d="M-24 -20 Q0 -36 24 -22" stroke="#2b2350" stroke-width="5" fill="none" stroke-linecap="round"/>
+                                    <path d="M27 -10 Q16 -32 -6 -31 Q-20 -30 -26 -18" stroke="#2a2152" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+                                    <path d="M26 -11 L33 -17 M24 -16 L30 -24" stroke="#2a2152" stroke-width="3" stroke-linecap="round"/>
+                                    <path d="M12 27 Q0 30 -10 27" stroke="#2a2152" stroke-width="2" fill="none" stroke-linecap="round" opacity=".5"/>
                                 </g>
-                                <path class="eye-closed" d="M-20 2 Q0 14 20 2" stroke="#2b2350" stroke-width="4.5" fill="none" stroke-linecap="round"/>
-                                <path class="eye-happy" d="M-19 6 Q0 -14 19 6" stroke="#2b2350" stroke-width="5" fill="none" stroke-linecap="round"/>
-                                <path class="eye-angry" d="M20 -4 L-20 6 M18 -2 Q0 22 -18 6" stroke="#2b2350" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+                                <g class="eye-closed" stroke="#2a2152" fill="none" stroke-linecap="round">
+                                    <path d="M-23 2 Q0 16 23 2" stroke-width="5"/>
+                                    <path d="M22 4 L29 2" stroke-width="3"/>
+                                </g>
+                                <path class="eye-happy" d="M-21 8 Q0 -16 21 8" stroke="#2a2152" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+                                <path class="eye-angry" d="M22 -6 L-22 4 M20 -2 Q0 24 -20 4" stroke="#2a2152" stroke-width="5" fill="none" stroke-linecap="round"/>
                             </g>
-                        </g>
-
-                        <!-- 眉 -->
-                        <g class="brows" stroke="#5a48b0" stroke-width="4" stroke-linecap="round" fill="none">
-                            <path class="brow brow-l" d="M146 182 Q163 175 180 180"/>
-                            <path class="brow brow-r" d="M220 180 Q237 175 254 182"/>
                         </g>
 
                         <!-- 口 -->
-                        <g class="mouth" transform="translate(200 290)">
-                            <path class="mouth-neutral" d="M-9 0 Q0 6 9 0" stroke="#8a3a4a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-                            <path class="mouth-smile" d="M-14 -3 Q0 14 14 -3" stroke="#8a3a4a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-                            <path class="mouth-sad" d="M-11 5 Q0 -5 11 5" stroke="#8a3a4a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-                            <path class="mouth-angry" d="M-12 4 L-4 -1 L4 3 L12 -2" stroke="#8a3a4a" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path class="mouth-thinking" d="M-6 2 Q2 -2 10 3" stroke="#8a3a4a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-                            <path class="mouth-shy" d="M-10 2 Q-5 -2 0 2 Q5 6 10 2" stroke="#8a3a4a" stroke-width="3" fill="none" stroke-linecap="round"/>
+                        <g class="mouth" transform="translate(200 294)">
+                            <path class="mouth-neutral" d="M-7 0 Q-3.5 4 0 1 Q3.5 4 7 0" stroke="#a8455a" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+                            <path class="mouth-smile" d="M-12 -3 Q0 14 12 -3 Q0 1 -12 -3 Z" fill="#c4486a" stroke="#a8455a" stroke-width="2" stroke-linejoin="round"/>
+                            <path class="mouth-sad" d="M-9 5 Q0 -4 9 5" stroke="#a8455a" stroke-width="3" fill="none" stroke-linecap="round"/>
+                            <path class="mouth-angry" d="M-11 4 L-4 -1 L3 3 L11 -2" stroke="#a8455a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path class="mouth-thinking" d="M-4 2 Q3 -2 9 3" stroke="#a8455a" stroke-width="3" fill="none" stroke-linecap="round"/>
+                            <path class="mouth-shy" d="M-10 2 Q-5 -2 0 2 Q5 6 10 2" stroke="#a8455a" stroke-width="2.6" fill="none" stroke-linecap="round"/>
                             <!-- 発話用（開いた口） -->
                             <g class="mouth-open">
-                                <ellipse id="mouthOpen" rx="11" ry="9" fill="#a83e55"/>
-                                <ellipse cy="5" rx="6" ry="3" fill="#ff8fa3"/>
+                                <ellipse id="mouthOpen" rx="9" ry="8" fill="#b23d5c"/>
+                                <ellipse cy="4" rx="5.5" ry="3" fill="#ff8fa8"/>
                             </g>
                         </g>
 
+                        <!-- 横髪 -->
+                        <path fill="url(#hairFront)" d="M120 160 C108 214 110 270 128 322 C132 286 132 238 142 196 Z"/>
+                        <path fill="url(#hairFront)" d="M280 160 C292 214 290 270 272 322 C268 286 268 238 258 196 Z"/>
+
                         <!-- 前髪 -->
-                        <path fill="url(#hairGrad)" d="M115 210 C105 110 160 70 205 72 C255 74 300 115 285 215 C275 175 262 150 245 135 C248 160 240 175 232 182 C228 160 218 140 205 128 C200 150 188 168 172 178 C176 160 172 145 168 136 C150 150 135 175 115 210 Z"/>
-                        <path fill="url(#hairHi)" d="M150 110 C175 95 220 92 250 110 C230 105 190 104 160 120 Z"/>
+                        <path fill="url(#hairFront)" d="M112 214 C102 128 150 74 200 74 C250 74 298 128 288 214
+                            Q282 184 270 160 Q268 176 262 188 Q258 166 250 150 Q248 180 240 202 Q234 172 226 148
+                            Q222 166 214 182 Q208 160 200 146 Q196 176 188 200 Q182 170 174 150 Q170 170 160 186
+                            Q154 166 148 152 Q146 178 138 196 Q134 176 130 160 Q122 186 112 214 Z"/>
+                        <path fill="url(#hairShade)" opacity=".35" d="M150 152 Q148 178 138 196 Q134 176 130 160 Z M226 148 Q234 172 240 202 Q248 180 250 150 Z"/>
+                        <!-- 天使の輪 -->
+                        <path fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="7" stroke-linecap="round" d="M142 116 Q200 90 258 116"/>
                         <!-- アホ毛 -->
-                        <path class="ahoge" fill="url(#hairGrad)" d="M200 76 C192 50 205 30 225 28 C210 38 206 55 208 76 Z"/>
+                        <path class="ahoge" fill="url(#hairFront)" d="M198 78 C188 48 204 26 228 24 C211 34 206 54 210 78 Z"/>
+                        <!-- 髪のリボン（ツインテールの結び目） -->
+                        <g transform="translate(118 158) rotate(-20)">
+                            <path fill="#ff6fa5" d="M0 0 L-18 -12 Q-24 0 -18 12 Z M0 0 L18 -12 Q24 0 18 12 Z"/>
+                            <circle r="5.5" fill="#ff9fc3"/>
+                        </g>
+                        <g transform="translate(282 158) rotate(20)">
+                            <path fill="#ff6fa5" d="M0 0 L-18 -12 Q-24 0 -18 12 Z M0 0 L18 -12 Q24 0 18 12 Z"/>
+                            <circle r="5.5" fill="#ff9fc3"/>
+                        </g>
                         <!-- 髪飾り -->
-                        <g class="hairpin" transform="translate(255 125) rotate(20)">
-                            <path d="M0 -10 L3 -3 L10 0 L3 3 L0 10 L-3 3 L-10 0 L-3 -3 Z" fill="#ffe36e"/>
+                        <g class="hairpin" transform="translate(252 142) rotate(15)">
+                            <path d="M0 -9 L2.6 -2.6 L9 0 L2.6 2.6 L0 9 L-2.6 2.6 L-9 0 L-2.6 -2.6 Z" fill="#ffe36e"/>
+                        </g>
+
+                        <!-- 眉（前髪の上に少し透けて見せる） -->
+                        <g class="brows" stroke="#6f56c4" stroke-width="3.2" stroke-linecap="round" fill="none" opacity=".85">
+                            <path class="brow brow-l" d="M142 196 Q158 190 174 194"/>
+                            <path class="brow brow-r" d="M226 194 Q242 190 258 196"/>
                         </g>
 
                         <!-- 感情エフェクト -->
                         <g class="fx fx-happy">
-                            <path d="M95 120 l4 10 l10 4 l-10 4 l-4 10 l-4 -10 l-10 -4 l10 -4 Z" fill="#ffe36e"/>
-                            <path d="M305 100 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3 l7 -3 Z" fill="#ffe36e"/>
-                            <path d="M318 160 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 Z" fill="#fff"/>
+                            <path d="M88 118 l4 10 l10 4 l-10 4 l-4 10 l-4 -10 l-10 -4 l10 -4 Z" fill="#ffe36e"/>
+                            <path d="M312 96 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3 l7 -3 Z" fill="#ffe36e"/>
+                            <path d="M330 150 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 Z" fill="#fff"/>
                         </g>
                         <g class="fx fx-sad">
-                            <path d="M150 248 Q146 262 150 270 Q156 262 150 248 Z" fill="#8fd8ff"/>
-                            <path d="M290 150 Q280 170 290 182 Q300 170 290 150 Z" fill="#8fd8ff" opacity=".9"/>
+                            <path d="M142 262 Q137 278 142 286 Q148 278 142 262 Z" fill="#8fd8ff"/>
+                            <path d="M300 112 Q290 132 300 144 Q310 132 300 112 Z" fill="#8fd8ff" opacity=".9"/>
                         </g>
-                        <g class="fx fx-angry"><g transform="translate(275 115)" stroke="#ff4d6d" stroke-width="5" stroke-linecap="round" fill="none">
-                            <path d="M-14 -4 Q-6 -6 -4 -14"/><path d="M4 -14 Q6 -6 14 -4"/>
-                            <path d="M14 4 Q6 6 4 14"/><path d="M-4 14 Q-6 6 -14 4"/>
+                        <g class="fx fx-angry"><g transform="translate(250 128)" stroke="#ff4d6d" stroke-width="5" stroke-linecap="round" fill="none">
+                            <path d="M-13 -4 Q-6 -6 -4 -13"/><path d="M4 -13 Q6 -6 13 -4"/>
+                            <path d="M13 4 Q6 6 4 13"/><path d="M-4 13 Q-6 6 -13 4"/>
                         </g></g>
                         <g class="fx fx-surprised" fill="#ff6fa5">
-                            <rect x="300" y="80" width="10" height="34" rx="5"/>
-                            <circle cx="305" cy="126" r="6"/>
-                            <rect x="318" y="88" width="8" height="26" rx="4" opacity=".7"/>
-                            <circle cx="322" cy="122" r="5" opacity=".7"/>
+                            <rect x="304" y="62" width="10" height="34" rx="5"/>
+                            <circle cx="309" cy="108" r="6"/>
+                            <rect x="322" y="70" width="8" height="26" rx="4" opacity=".7"/>
+                            <circle cx="326" cy="104" r="5" opacity=".7"/>
                         </g>
                         <g class="fx fx-thinking">
-                            <circle cx="300" cy="140" r="5" fill="#fff" opacity=".85"/>
-                            <circle cx="315" cy="118" r="8" fill="#fff" opacity=".85"/>
-                            <text x="318" y="96" font-size="36" font-weight="bold" fill="#fff">?</text>
+                            <circle cx="306" cy="118" r="5" fill="#fff" opacity=".85"/>
+                            <circle cx="320" cy="96" r="8" fill="#fff" opacity=".85"/>
+                            <text x="322" y="74" font-size="36" font-weight="bold" fill="#fff">?</text>
                         </g>
                         <g class="fx fx-shy">
-                            <text x="290" y="110" font-size="30" fill="#ff6fa5">♡</text>
-                            <text x="80" y="140" font-size="22" fill="#ff8fb1">♡</text>
+                            <text x="296" y="100" font-size="30" fill="#ff6fa5">♡</text>
+                            <text x="76" y="126" font-size="22" fill="#ff8fb1">♡</text>
                         </g>
                     </g>
                 </g>
