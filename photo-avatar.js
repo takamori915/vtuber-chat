@@ -411,6 +411,105 @@ export function createPhotoRenderer(canvas) {
 
     // 片目ぶん：眉の上下（内側・外側）と、上まぶたの上下
     // e: { bi: 眉の内側, bo: 眉の外側（+で下がる）, lid: まぶた（+で閉じる、-で見開く） }
+    // 回転後の座標 (x, y) の色
+    function colorAt(x, y) {
+        const ix = Math.round(x + W / 2), iy = Math.round(y + H / 2);
+        if (ix < 0 || iy < 0 || ix >= W || iy >= H) return null;
+        const i = (iy * W + ix) * 4;
+        return [src[i], src[i + 1], src[i + 2], src[i + 3]];
+    }
+
+    function averageColor(cx, cy, r) {
+        let n = 0;
+        const sum = [0, 0, 0];
+        for (let y = cy - r; y <= cy + r; y++) {
+            for (let x = cx - r; x <= cx + r; x++) {
+                const c = colorAt(x, y);
+                if (!c || c[3] < 200) continue;
+                sum[0] += c[0]; sum[1] += c[1]; sum[2] += c[2];
+                n++;
+            }
+        }
+        return n ? sum.map((v) => v / n) : null;
+    }
+
+    // 画像から実際の目の大きさをはかる。検出される目の輪郭は、大きく描かれた目より小さいことが多いので、
+    // 目の中心から上下左右に、頬の肌の色に戻るところまでを目とする
+    function measureEye(side) {
+        const p = geo.pts;
+        const outer = p[`eye${side}Outer`], inner = p[`eye${side}Inner`];
+        const cx = (outer.x + inner.x) / 2;
+        const cy = (p[`eye${side}Top`].y + p[`eye${side}Bottom`].y) / 2;
+        const ew = Math.abs(outer.x - inner.x);
+        // 肌の色は、頬と両目の間（鼻すじ）の平均をとる（頬だけだと赤みが強く、まぶたに合わない）
+        const cheek = averageColor(cx, Math.round(cy + ew * 0.75), Math.max(2, Math.round(ew * 0.12)));
+        const midX = (p.eyeLInner.x + p.eyeRInner.x) / 2;
+        const bridge = averageColor(Math.round(midX), Math.round(cy), Math.max(2, Math.round(ew * 0.1)));
+        const skin = cheek && bridge ? cheek.map((v, i) => (v + bridge[i]) / 2) : cheek || bridge || [230, 200, 185];
+        const isSkin = (c) => c && Math.hypot(c[0] - skin[0], c[1] - skin[1], c[2] - skin[2]) < 28;
+        const scan = (dx, dy, max) => {
+            let run = 0;
+            for (let d = 1; d <= max; d++) {
+                const c = colorAt(cx + dx * d, cy + dy * d);
+                if (isSkin(c)) {
+                    if (++run >= 3) return d - 2;
+                } else run = 0;
+            }
+            return max;
+        };
+        // 前髪や眉まで覆わないよう、目の幅を基準に範囲を制限する
+        const up = Math.min(Math.max(scan(0, -1, Math.round(ew * 0.9)), ew * 0.28), ew * 0.48);
+        // 下まつ毛まで覆う（検出された下まぶたより少し下まで）
+        const lidBottom = p[`eye${side}Bottom`].y - cy + ew * 0.18;
+        const down = Math.min(Math.max(scan(0, 1, Math.round(ew * 0.9)), ew * 0.22, lidBottom), ew * 0.52);
+        const half = Math.min(Math.max((scan(-1, 0, Math.round(ew)) + scan(1, 0, Math.round(ew))) / 2, ew * 0.5), ew * 0.62);
+        const eye = { cx, cy: cy + (down - up) / 2, rx: half + 1, ry: (up + down) / 2 + 1, skin };
+        // 覆う色は、楕円のすぐ外側の肌の色に合わせる（前髪やまつ毛など肌でない点は除く）
+        const ring = [];
+        for (let i = 0; i < 48; i++) {
+            const a = (i / 48) * Math.PI * 2;
+            const c = colorAt(eye.cx + Math.cos(a) * eye.rx * 1.3, eye.cy + Math.sin(a) * eye.ry * 1.3);
+            if (c && c[3] > 200 && Math.hypot(c[0] - skin[0], c[1] - skin[1], c[2] - skin[2]) < 40) ring.push(c);
+        }
+        if (ring.length >= 8) eye.skin = [0, 1, 2].map((k) => ring.reduce((t, c) => t + c[k], 0) / ring.length);
+        return eye;
+    }
+
+    // まばたき：肌の色で目を覆い、閉じたまつ毛の線を描く（lid が 0.5 を超えるとだんだん閉じる）
+    function closeEye(side, lid) {
+        const m = geo.eyes?.[side];
+        if (!m) return;
+        const t = Math.max(0, Math.min(1, (lid - 0.5) / 0.4));
+        if (t <= 0) return;
+        const k = t * t * (3 - 2 * t);
+        const [r, gg, b] = m.skin;
+        const top = `rgb(${r * 0.95},${gg * 0.93},${b * 0.93})`; // まぶたの上はほんの少し影
+        const bottom = `rgb(${r},${gg},${b})`;
+        g.save();
+        // 縁をぼかすため、少し大きい楕円から薄く重ねる
+        for (const [scale, a] of [[1.3, 0.12], [1.2, 0.2], [1.1, 0.35], [1.0, 1]]) {
+            const grad = g.createLinearGradient(0, m.cy - m.ry * scale, 0, m.cy + m.ry * scale);
+            grad.addColorStop(0, top);
+            grad.addColorStop(1, bottom);
+            g.globalAlpha = a * k;
+            g.fillStyle = grad;
+            g.beginPath();
+            g.ellipse(m.cx, m.cy, m.rx * scale, m.ry * scale, 0, 0, Math.PI * 2);
+            g.fill();
+        }
+        // 閉じたまつ毛の線（下向きのゆるいカーブ）
+        g.globalAlpha = k;
+        g.strokeStyle = 'rgba(58, 38, 32, 0.9)';
+        g.lineWidth = Math.max(1.5, m.rx * 0.11);
+        g.lineCap = 'round';
+        const ly = m.cy + m.ry * 0.3;
+        g.beginPath();
+        g.moveTo(m.cx - m.rx * 0.95, ly - m.ry * 0.05);
+        g.quadraticCurveTo(m.cx, ly + m.ry * 0.45, m.cx + m.rx * 0.95, ly - m.ry * 0.05);
+        g.stroke();
+        g.restore();
+    }
+
     function warpEye(side, e) {
         const p = geo.pts;
         const outer = p[`eye${side}Outer`], inner = p[`eye${side}Inner`];
@@ -497,8 +596,12 @@ export function createPhotoRenderer(canvas) {
         g.translate(geo.fc.x, geo.fc.y);
         g.rotate(geo.theta);
         if (geo.hasEyes) {
-            warpEye('L', expr.L);
-            warpEye('R', expr.R);
+            // まぶたのゆがみは細める程度まで。閉じるのは closeEye で目を覆って描く
+            const half = (e) => ({ ...e, lid: Math.min(e.lid, 0.45) });
+            warpEye('L', half(expr.L));
+            warpEye('R', half(expr.R));
+            closeEye('L', expr.L.lid);
+            closeEye('R', expr.R.lid);
         }
         warpMouth(expr.mouth);
         g.restore();
@@ -522,6 +625,12 @@ export function createPhotoRenderer(canvas) {
                 geo = prepare(data.face);
                 src = makeSource();
                 geo.lipSplit = findLipCenter();
+                if (geo.hasEyes) {
+                    // 左右の目の大きさはそろえる
+                    const L = measureEye('L'), R = measureEye('R');
+                    const rx = (L.rx + R.rx) / 2, ry = (L.ry + R.ry) / 2;
+                    geo.eyes = { L: { ...L, rx, ry }, R: { ...R, rx, ry } };
+                }
             }
             render({ mouth: 0, L: { bi: 0, bo: 0, lid: 0 }, R: { bi: 0, bo: 0, lid: 0 } });
         },

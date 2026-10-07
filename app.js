@@ -1,4 +1,4 @@
-import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=22';
+import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=23';
 import { createBodyRig, danceAngles } from './body-rig.js?v=22';
 import { createDanceVideoPlayer, saveDanceVideo, loadDanceVideo, deleteDanceVideo } from './dance-video.js?v=14';
 
