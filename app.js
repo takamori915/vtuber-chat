@@ -35,18 +35,18 @@ const DEFAULT_SETTINGS = {
 // キャラクターの見た目（AIが設定画面のプロンプトから決める）
 const DEFAULT_APPEARANCE = {
     hairStyle: 'long',
-    hairColor: '#e8b93c',
-    hairTipColor: '#f3d27a',
-    eyeColor: '#4f6fd8',
-    skinColor: '#fff1ea',
-    outfitColor: '#262d45',
-    collarColor: '#e6ecf5',
-    accentColor: '#3fe0ff',
+    hairColor: '#6b4433',
+    hairTipColor: '#7d5240',
+    eyeColor: '#7a5038',
+    skinColor: '#fdeee4',
+    outfitColor: '#b98d93',
+    collarColor: '#7a4a50',
+    accentColor: '#5a2f38',
     catEars: false,
     earColor: '#fdf7ff',
     hairRibbons: false, // ツインテールの結び目なので、ストレートでは付けない
-    hairpin: true,
-    ahoge: true,
+    hairpin: false,
+    ahoge: false,
 };
 
 // 送信する履歴の上限（往復数ではなくメッセージ数）
@@ -885,9 +885,9 @@ const APPEARANCE_SCHEMA = {
         hairTipColor: { type: 'string', description: '毛先の色（#RRGGBB）。グラデーションにしないなら hairColor と同じ' },
         eyeColor: { type: 'string', description: '瞳の色（#RRGGBB）' },
         skinColor: { type: 'string', description: '肌の色（#RRGGBB）。明るめの色にする' },
-        outfitColor: { type: 'string', description: '近未来風スーツの色（#RRGGBB）' },
-        collarColor: { type: 'string', description: 'ハイネックの襟と肩アーマーの色（#RRGGBB）' },
-        accentColor: { type: 'string', description: '服の光るライン・胸のエンブレムなど差し色（#RRGGBB）' },
+        outfitColor: { type: 'string', description: 'ニットのセーターの色（#RRGGBB）' },
+        collarColor: { type: 'string', description: 'タートルネックの色（#RRGGBB）' },
+        accentColor: { type: 'string', description: 'セーターのノルディック柄の色（#RRGGBB）' },
         catEars: { type: 'boolean', description: '猫耳カチューシャを付けるか' },
         earColor: { type: 'string', description: '猫耳の外側の色（#RRGGBB）' },
         hairRibbons: { type: 'boolean', description: '頭の左右のリボンを付けるか' },

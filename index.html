@@ -80,6 +80,9 @@
                         <stop offset="0" stop-color="#ffffff" stop-opacity=".7"/>
                         <stop offset=".5" stop-color="#ffffff" stop-opacity="0"/>
                     </linearGradient>
+                    <clipPath id="sweaterClip">
+                        <path d="M116 520 C114 440 146 376 200 370 C254 376 286 440 284 520 Z"/>
+                    </clipPath>
                     <clipPath id="eyeClip">
                         <ellipse rx="23" ry="28"/>
                     </clipPath>
@@ -88,39 +91,30 @@
                 <g id="body" class="body">
                     <!-- ロングヘア（髪型が long のときだけ表示。胴体より後ろに描く） -->
                     <path class="long-hair" fill="url(#hairGrad)" style="display:none" d="M112 200 C96 300 92 400 104 488 Q128 472 150 490 L250 490 Q272 472 296 488 C308 400 304 300 288 200 Z"/>
-                    <!-- 胴体（近未来スーツ） -->
-                    <path fill="url(#outfitGrad)" d="M120 520 C118 440 148 378 200 372 C252 378 282 440 280 520 Z"/>
+                    <!-- 胴体（タートルネックのニット） -->
+                    <path fill="url(#outfitGrad)" d="M116 520 C114 440 146 376 200 370 C254 376 286 440 284 520 Z"/>
                     <path class="skin" fill="#ffe6dc" d="M184 316 L216 316 L218 372 C207 381 193 381 182 372 Z"/>
                     <path class="skin-shade" fill="#f3cbbd" d="M184 322 Q200 340 216 322 L216 338 Q200 350 184 338 Z"/>
-                    <!-- 胸の中央パネルと継ぎ目 -->
-                    <path fill="#ffffff" opacity=".07" d="M180 396 L220 396 L236 520 L164 520 Z"/>
-                    <path fill="none" stroke="#000" stroke-opacity=".25" stroke-width="1.5" d="M180 396 L164 520 M220 396 L236 520"/>
-                    <!-- 光るライン -->
-                    <g class="neon" filter="url(#neonGlow)" fill="none" stroke-linecap="round">
-                        <path class="accent-stroke" stroke="#7fe9ff" stroke-width="2.6" d="M200 410 L200 520"/>
-                        <path class="accent-stroke" stroke="#7fe9ff" stroke-width="2.4" d="M150 520 C150 482 160 452 178 430 M250 520 C250 482 240 452 222 430"/>
-                        <path class="accent-stroke" stroke="#7fe9ff" stroke-width="2" d="M172 470 L186 484 L186 520 M228 470 L214 484 L214 520"/>
+                    <g clip-path="url(#sweaterClip)">
+                        <!-- 編み目（縦のうね） -->
+                        <path fill="none" stroke="#000" stroke-opacity=".07" stroke-width="2"
+                            d="M128 380 V520 M140 380 V520 M152 380 V520 M164 380 V520 M176 380 V520 M188 380 V520 M200 380 V520 M212 380 V520 M224 380 V520 M236 380 V520 M248 380 V520 M260 380 V520 M272 380 V520"/>
+                        <!-- ノルディック柄の帯 -->
+                        <path class="accent-stroke" fill="none" stroke="#6a3a44" stroke-width="3" stroke-linejoin="round"
+                            d="M110 420 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7"/>
+                        <g class="accent" fill="#5a2f38">
+                            <path d="M128 446 l7 -8 l7 8 l-7 8 Z M156 446 l7 -8 l7 8 l-7 8 Z M184 446 l7 -8 l7 8 l-7 8 Z M212 446 l7 -8 l7 8 l-7 8 Z M240 446 l7 -8 l7 8 l-7 8 Z M268 446 l7 -8 l7 8 l-7 8 Z"/>
+                        </g>
+                        <g class="accent-light" fill="#e8c9c4">
+                            <circle cx="149" cy="446" r="2.6"/><circle cx="177" cy="446" r="2.6"/><circle cx="205" cy="446" r="2.6"/><circle cx="233" cy="446" r="2.6"/><circle cx="261" cy="446" r="2.6"/>
+                        </g>
+                        <path class="accent-stroke" fill="none" stroke="#6a3a44" stroke-width="3" stroke-linejoin="round"
+                            d="M110 466 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7 l9 7 l9 -7"/>
+                        <path fill="#000" opacity=".08" d="M110 488 H290 V520 H110 Z"/>
                     </g>
-                    <!-- 肩のアーマー -->
-                    <path class="collar" fill="#e6ecf5" d="M124 452 C124 412 148 386 178 382 L184 402 C160 406 144 426 140 456 Z"/>
-                    <path class="collar" fill="#e6ecf5" d="M276 452 C276 412 252 386 222 382 L216 402 C240 406 256 426 260 456 Z"/>
-                    <path fill="url(#armorShine)" d="M128 440 C130 414 148 392 172 388 L174 394 C152 400 138 418 134 442 Z"/>
-                    <path fill="url(#armorShine)" d="M272 440 C270 414 252 392 228 388 L226 394 C248 400 262 418 266 442 Z"/>
-                    <g class="neon" filter="url(#neonGlow)" fill="none" stroke-linecap="round">
-                        <path class="accent-stroke" stroke="#7fe9ff" stroke-width="2.2" d="M134 446 C136 424 150 406 172 398 M266 446 C264 424 250 406 228 398"/>
-                    </g>
-                    <!-- ハイネックの襟 -->
-                    <path class="collar" fill="#e6ecf5" d="M178 350 Q200 360 222 350 L230 386 Q200 400 170 386 Z"/>
-                    <path fill="#000" opacity=".12" d="M178 350 Q200 360 222 350 L223 356 Q200 366 177 356 Z"/>
-                    <g class="neon" filter="url(#neonGlow)" fill="none" stroke-linecap="round">
-                        <path class="accent-stroke" stroke="#7fe9ff" stroke-width="2.4" d="M174 380 Q200 393 226 380"/>
-                    </g>
-                    <!-- 胸のエンブレム（光る六角形） -->
-                    <g transform="translate(200 440)">
-                        <path class="accent" fill="#3fe0ff" filter="url(#neonGlow)" d="M0 -15 L13 -7.5 L13 7.5 L0 15 L-13 7.5 L-13 -7.5 Z"/>
-                        <path fill="#1a2238" d="M0 -10 L8.7 -5 L8.7 5 L0 10 L-8.7 5 L-8.7 -5 Z"/>
-                        <path class="accent-light" fill="#9df0ff" d="M0 -5.5 L4.8 -2.75 L4.8 2.75 L0 5.5 L-4.8 2.75 L-4.8 -2.75 Z"/>
-                    </g>
+                    <!-- タートルネック -->
+                    <path class="collar" fill="#7a4a50" d="M174 346 Q200 356 226 346 L232 386 Q200 400 168 386 Z"/>
+                    <path fill="none" stroke="#000" stroke-opacity=".12" stroke-width="2" d="M182 352 L180 388 M191 355 L190 392 M200 356 V393 M209 355 L210 392 M218 352 L220 388"/>
 
                     <!-- 頭（後ろ髪・ツインテールも一緒に動く） -->
                     <g id="head" class="head">
@@ -160,7 +154,7 @@
 
                         <!-- 目 -->
                         <g id="eyes" class="eyes">
-                            <g class="eye eye-l" transform="translate(158 234)">
+                            <g class="eye eye-l" transform="translate(158 236) scale(0.86)">
                                 <g class="eye-open">
                                     <ellipse rx="23" ry="28" fill="#fff"/>
                                     <g clip-path="url(#eyeClip)">
@@ -172,18 +166,18 @@
                                             <path d="M5 -14 l1.2 3 l3 1.2 l-3 1.2 l-1.2 3 l-1.2 -3 l-3 -1.2 l3 -1.2 Z" fill="#fff"/>
                                         </g>
                                     </g>
-                                    <path d="M-27 -10 Q-16 -32 6 -31 Q20 -30 26 -18" stroke="#2a2152" stroke-width="5.5" fill="none" stroke-linecap="round"/>
-                                    <path d="M-26 -11 L-33 -17 M-24 -16 L-30 -24" stroke="#2a2152" stroke-width="3" stroke-linecap="round"/>
-                                    <path d="M-12 27 Q0 30 10 27" stroke="#2a2152" stroke-width="2" fill="none" stroke-linecap="round" opacity=".5"/>
+                                    <path d="M-27 -10 Q-16 -32 6 -31 Q20 -30 26 -18" stroke="#3b2620" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+                                    <path d="M-26 -11 L-33 -17 M-24 -16 L-30 -24" stroke="#3b2620" stroke-width="3" stroke-linecap="round"/>
+                                    <path d="M-12 27 Q0 30 10 27" stroke="#3b2620" stroke-width="2" fill="none" stroke-linecap="round" opacity=".5"/>
                                 </g>
-                                <g class="eye-closed" stroke="#2a2152" fill="none" stroke-linecap="round">
+                                <g class="eye-closed" stroke="#3b2620" fill="none" stroke-linecap="round">
                                     <path d="M-23 2 Q0 16 23 2" stroke-width="5"/>
                                     <path d="M-22 4 L-29 2" stroke-width="3"/>
                                 </g>
-                                <path class="eye-happy" d="M-21 8 Q0 -16 21 8" stroke="#2a2152" stroke-width="5.5" fill="none" stroke-linecap="round"/>
-                                <path class="eye-angry" d="M-22 -6 L22 4 M-20 -2 Q0 24 20 4" stroke="#2a2152" stroke-width="5" fill="none" stroke-linecap="round"/>
+                                <path class="eye-happy" d="M-21 8 Q0 -16 21 8" stroke="#3b2620" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+                                <path class="eye-angry" d="M-22 -6 L22 4 M-20 -2 Q0 24 20 4" stroke="#3b2620" stroke-width="5" fill="none" stroke-linecap="round"/>
                             </g>
-                            <g class="eye eye-r" transform="translate(242 234)">
+                            <g class="eye eye-r" transform="translate(242 236) scale(0.86)">
                                 <g class="eye-open">
                                     <ellipse rx="23" ry="28" fill="#fff"/>
                                     <g clip-path="url(#eyeClip)">
@@ -195,16 +189,16 @@
                                             <path d="M5 -14 l1.2 3 l3 1.2 l-3 1.2 l-1.2 3 l-1.2 -3 l-3 -1.2 l3 -1.2 Z" fill="#fff"/>
                                         </g>
                                     </g>
-                                    <path d="M27 -10 Q16 -32 -6 -31 Q-20 -30 -26 -18" stroke="#2a2152" stroke-width="5.5" fill="none" stroke-linecap="round"/>
-                                    <path d="M26 -11 L33 -17 M24 -16 L30 -24" stroke="#2a2152" stroke-width="3" stroke-linecap="round"/>
-                                    <path d="M12 27 Q0 30 -10 27" stroke="#2a2152" stroke-width="2" fill="none" stroke-linecap="round" opacity=".5"/>
+                                    <path d="M27 -10 Q16 -32 -6 -31 Q-20 -30 -26 -18" stroke="#3b2620" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+                                    <path d="M26 -11 L33 -17 M24 -16 L30 -24" stroke="#3b2620" stroke-width="3" stroke-linecap="round"/>
+                                    <path d="M12 27 Q0 30 -10 27" stroke="#3b2620" stroke-width="2" fill="none" stroke-linecap="round" opacity=".5"/>
                                 </g>
-                                <g class="eye-closed" stroke="#2a2152" fill="none" stroke-linecap="round">
+                                <g class="eye-closed" stroke="#3b2620" fill="none" stroke-linecap="round">
                                     <path d="M-23 2 Q0 16 23 2" stroke-width="5"/>
                                     <path d="M22 4 L29 2" stroke-width="3"/>
                                 </g>
-                                <path class="eye-happy" d="M-21 8 Q0 -16 21 8" stroke="#2a2152" stroke-width="5.5" fill="none" stroke-linecap="round"/>
-                                <path class="eye-angry" d="M22 -6 L-22 4 M20 -2 Q0 24 -20 4" stroke="#2a2152" stroke-width="5" fill="none" stroke-linecap="round"/>
+                                <path class="eye-happy" d="M-21 8 Q0 -16 21 8" stroke="#3b2620" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+                                <path class="eye-angry" d="M22 -6 L-22 4 M20 -2 Q0 24 -20 4" stroke="#3b2620" stroke-width="5" fill="none" stroke-linecap="round"/>
                             </g>
                         </g>
 
@@ -228,13 +222,18 @@
                         <path fill="url(#hairFront)" d="M280 160 C292 214 290 270 272 322 C268 286 268 238 258 196 Z"/>
 
                         <!-- 前髪 -->
-                        <path fill="url(#hairFront)" d="M112 214 C102 128 150 74 200 74 C250 74 298 128 288 214
-                            Q282 184 270 160 Q268 176 262 188 Q258 166 250 150 Q248 180 240 202 Q234 172 226 148
-                            Q222 166 214 182 Q208 160 200 146 Q196 176 188 200 Q182 170 174 150 Q170 170 160 186
-                            Q154 166 148 152 Q146 178 138 196 Q134 176 130 160 Q122 186 112 214 Z"/>
-                        <path fill="url(#hairShade)" opacity=".35" d="M150 152 Q148 178 138 196 Q134 176 130 160 Z M226 148 Q234 172 240 202 Q248 180 250 150 Z"/>
+                        <path fill="url(#hairFront)" d="M112 222 C102 128 150 74 200 74 C250 74 298 128 288 222
+                            C282 202 276 188 268 178
+                            C262 188 252 194 240 196 L236 189 L232 197
+                            Q218 200 204 198 L201 190 L197 198
+                            Q182 199 170 196 L167 189 L163 195
+                            C150 193 140 188 132 178
+                            C124 188 118 202 112 222 Z"/>
+                        <!-- 毛の流れ -->
+                        <path fill="none" stroke="url(#hairShade)" stroke-opacity=".25" stroke-width="1.6" stroke-linecap="round"
+                            d="M156 130 Q150 156 152 176 M182 120 Q178 150 181 178 M218 120 Q222 150 219 178 M244 130 Q250 156 248 176"/>
                         <!-- 天使の輪 -->
-                        <path fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="7" stroke-linecap="round" d="M142 116 Q200 90 258 116"/>
+                        <path fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="7" stroke-linecap="round" d="M142 116 Q200 90 258 116"/>
                         <!-- アホ毛 -->
                         <path class="ahoge" fill="url(#hairFront)" d="M198 78 C188 48 204 26 228 24 C211 34 206 54 210 78 Z"/>
                         <!-- 髪のリボン（ツインテールの結び目） -->
@@ -426,6 +425,6 @@
         </form>
     </dialog>
 
-    <script type="module" src="app.js?v=16"></script>
+    <script type="module" src="app.js?v=19"></script>
 </body>
 </html>
