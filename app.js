@@ -116,6 +116,33 @@ const character = (() => {
     }
 
     // 踊る（続けて頼まれたら延長する）
+    // その場で真上にジャンプ（times 回）
+    let jumpStart = -1, jumpTimes = 0;
+    function jump(times = 3) {
+        jumpStart = performance.now();
+        jumpTimes = times;
+        setEmotion('happy', { holdMs: times * 550 + 1500 });
+    }
+    function jumpTransform(now) {
+        if (jumpStart < 0) return '';
+        const el = (now - jumpStart) / 550; // 1回 0.55 秒
+        if (el >= jumpTimes) {
+            jumpStart = -1;
+            return '';
+        }
+        const ph = el % 1;
+        const k = wrap0.clientWidth / 400;
+        // 0〜0.15：しゃがむ、0.15〜0.85：空中（放物線）、0.85〜1：着地でつぶれる
+        let y = 0, sy = 1;
+        if (ph < 0.15) sy = 1 - 0.06 * Math.sin((ph / 0.15) * Math.PI / 2);
+        else if (ph < 0.85) {
+            const u = (ph - 0.15) / 0.7;
+            y = -4 * u * (1 - u) * 60;
+            sy = 1 + 0.03 * Math.sin(u * Math.PI);
+        } else sy = 1 - 0.06 * Math.sin(((ph - 0.85) / 0.15) * Math.PI);
+        return `translateY(${y * k}px) scale(${2 - sy}, ${sy})`;
+    }
+
     function dance(ms = 8000, { useVideo = true } = {}) {
         if (useVideo && videoPlayer.ready) {
             playVideoDance();
@@ -311,11 +338,11 @@ const character = (() => {
                 talkLevel += ((voiceLevel !== null || speaking ? mouthLevel : 0) - talkLevel) * 0.5;
                 lift = talkLevel * 9;
             }
-            photoMove.style.transform = `translate(0px, ${(bob - lift) * k}px) rotate(${rot}deg)`;
+            photoMove.style.transform = `translate(0px, ${(bob - lift) * k}px)`; // 写真は傾けない（体ごと斜めになるため）
         }
 
         const ds = danceState(now);
-        danceBox.style.transform = danceTransform(ds);
+        danceBox.style.transform = jumpStart >= 0 ? jumpTransform(now) : danceTransform(ds);
 
         // 全身写真なら、踊っている間は手足も動かす
         const limbs = Boolean(ds) && bodyRig.active && svg.classList.contains('photo-mode');
@@ -335,6 +362,7 @@ const character = (() => {
         setEmotion,
         setSpeaking,
         dance,
+        jump,
         setVoiceLevel(v) { voiceLevel = v; },
         photo: photoRenderer,
         body: bodyRig,
@@ -350,7 +378,7 @@ function clamp(v, min, max) {
 
 // ===== 感情タグのストリーミングパーサー =====
 // 応答中の [happy] のようなタグを取り除き、表情イベントに変換する
-const TAG_RE = /^\[(neutral|happy|sad|angry|surprised|thinking|shy|dance|outfit:casual|outfit:future|outfit:toggle)\]/;
+const TAG_RE = /^\[(neutral|happy|sad|angry|surprised|thinking|shy|dance|jump|outfit:casual|outfit:future|outfit:toggle)\]/;
 
 function createTagParser(onText, onEmotion) {
     let buf = '';
@@ -417,6 +445,7 @@ function createTypewriter(bubble, { onDone } = {}) {
         const item = queue.shift();
         if (item.type === 'emotion') {
             if (item.name === 'dance') character.dance();
+            else if (item.name === 'jump') character.jump();
             else if (item.name.startsWith('outfit:')) changeOutfit(item.name.slice(7));
             else character.setEmotion(item.name);
         } else {
@@ -730,6 +759,8 @@ function buildSystemPrompt() {
         '## 踊る',
         '踊ってと頼まれたときや、嬉しくて踊りたくなったときは、返答に [dance] を入れると画面のキャラクターが踊ります（表情タグと一緒に使えます）。',
         '例: [happy][dance]いくよー！それっ、ワン・ツー♪',
+        'ジャンプしてと頼まれたら [jump] を入れると、その場で真上に3回ジャンプします。',
+        '例: [happy][jump]ぴょん、ぴょん、ぴょーん！',
         ...(settings.characterMode === 'preset' ? [
             '',
             '## 着替え',
@@ -962,6 +993,10 @@ const DEMO_RULES = [
         /未来|スーツ/.test(t) ? ['[happy][outfit:future]じゃーん！未来スーツに着替えたよ！']
             : /普段|いつも|Tシャツ|ジーンズ/.test(t) ? ['[happy][outfit:casual]いつもの服に着替えたよ〜！']
                 : ['[happy][outfit:toggle]お着替えしたよ！どうかな？'] },
+    { re: /ジャンプ|跳んで|とんで|はねて|jump/i, replies: [
+        '[happy][jump]ぴょん、ぴょん、ぴょーん！',
+        '[happy][jump]それっ！高く跳べたかな？',
+    ] },
     { re: /踊|おど(って|る|ろ)|ダンス|dance/i, replies: [
         '[happy][dance]いくよー！それっ、ワン・ツー♪',
         '[happy][dance]踊るの大好き！見ててね〜♪',
