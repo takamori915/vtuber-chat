@@ -1,5 +1,5 @@
-import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=12';
-import { createBodyRig, danceAngles } from './body-rig.js?v=12';
+import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=13';
+import { createBodyRig, danceAngles } from './body-rig.js?v=13';
 
 // ===== 設定・定数 =====
 const STORAGE_KEYS = {

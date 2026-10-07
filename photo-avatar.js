@@ -1,5 +1,5 @@
 // 写真キャラ：人物の切り抜きと口パク
-import { extractPose } from './body-rig.js?v=12';
+import { extractPose } from './body-rig.js?v=13';
 // MediaPipe（Google）の画像処理をブラウザ内で動かすので、写真は外部に送られない。
 // 必要なモデルは初回だけダウンロードされ、以降はブラウザのキャッシュから読み込まれる。
 
@@ -243,10 +243,7 @@ export function createPhotoRenderer(canvas) {
         const c = newCanvas();
         const b = c.getContext('2d');
         if (cutout) {
-            // 背景から少し浮かせる影だけ付ける
-            b.shadowColor = 'rgba(0, 0, 0, 0.3)';
-            b.shadowBlur = 16;
-            b.shadowOffsetY = 6;
+            // 影は CSS で付ける（画像に描き込むと、手足を曲げたときに影まで伸びてしまう）
             b.drawImage(img, 0, 0, W, H);
         } else {
             // 枠線なしの角丸

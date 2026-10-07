@@ -139,12 +139,21 @@ export function createBodyRig(glCanvas) {
             { x: hp[1].x + grow, y: hp[1].y }, { x: hp[0].x - grow, y: hp[0].y },
         ];
 
+        // 腕が体や頭にくっついている（服を持つ、頭に手を当てる等）と、回したときに服や頭まで伸びてしまう。
+        // ひじと手首（と前腕の中ほど）が胴体と頭から十分離れている腕だけ動かす
+        const headC = { x: (sh[0].x + sh[1].x) / 2, y: Math.min(sh[0].y, sh[1].y) - shoulderW * 0.9 };
+        const headR = shoulderW * 0.75;
+        const armIsFree = (e, w) => {
+            const mid = { x: (e.x + w.x) / 2, y: (e.y + w.y) / 2 };
+            return [e, mid, w].every((q) => quadDistance(q.x, q.y, torsoQuad) > shoulderW * 0.15 && Math.hypot(q.x - headC.x, q.y - headC.y) > headR);
+        };
+
         // 骨：{ name, a: 付け根, b: 先, parent, side(+1: 画像の左, -1: 右) }
         const bones = [{ name: 'torso', a: hipC, b: { x: (sh[0].x + sh[1].x) / 2, y: (sh[0].y + sh[1].y) / 2 }, parent: null }];
         for (const i of [0, 1]) {
             const side = i === 0 ? 1 : -1;
             const key = i === 0 ? 'L' : 'R';
-            if (seen(el[i], wr[i])) {
+            if (seen(el[i], wr[i]) && armIsFree(el[i], wr[i])) {
                 bones.push({ name: `upperArm${key}`, a: sh[i], b: el[i], parent: 'torso', side });
                 bones.push({ name: `foreArm${key}`, a: el[i], b: wr[i], parent: `upperArm${key}`, side, tip: true });
             }
@@ -188,7 +197,7 @@ export function createBodyRig(glCanvas) {
         const nV = pos.length / 2;
         const boneIdx = new Uint8Array(nV * 2);
         const boneW = new Float32Array(nV * 2);
-        const reach = shoulderW * 0.35;
+        const reach = shoulderW * 0.3;
         for (let v = 0; v < nV; v++) {
             const x = pos[v * 2], y = pos[v * 2 + 1];
             const scores = bones.map((bone) => {
@@ -202,7 +211,7 @@ export function createBodyRig(glCanvas) {
                     // 手先・足先は骨の先より外側の肉（手のひら、足）も付いていくように
                     if (bone.tip) d = Math.min(d, segmentDistance(x, y, bone.b, { x: bone.b.x + (bone.b.x - bone.a.x) * 0.5, y: bone.b.y + (bone.b.y - bone.a.y) * 0.5 }));
                 }
-                return 1 / Math.pow(Math.max(d, 1) / reach + 0.05, 4);
+                return 1 / Math.pow(Math.max(d, 1) / reach + 0.05, 6);
             });
             // 上位2本の骨だけ使う
             const order = scores.map((s, i) => i).sort((p, q) => scores[q] - scores[p]);
@@ -304,39 +313,39 @@ export function createBodyRig(glCanvas) {
     };
 }
 
-// 踊りの手足の動き（拍 b に対する角度）。体全体の動き（app.js の danceTransform）と同じ拍で動く
+// 踊りの手足の動き（拍 b に対する、写真の姿勢からの回転角）。体全体の動き（app.js の danceTransform）と同じ拍で動く。
+// 写真を曲げているので、大きく回すと不自然に伸びる。腕は最大60度、脚は小さくひざを曲げる程度にとどめる
 export function danceAngles(b, env) {
     const part = Math.floor(b / 8) % 3;
     const s = Math.sin(b * Math.PI);
     const a = {};
     if (part === 0) {
-        // 左右交互に腕を振り上げる
-        a.upperArmL = 45 + 45 * s;
-        a.upperArmR = 45 - 45 * s;
-        a.foreArmL = 25 + 20 * Math.abs(s);
-        a.foreArmR = 25 + 20 * Math.abs(s);
-        a.thighL = 6 * Math.max(0, s);
-        a.thighR = 6 * Math.max(0, -s);
-        a.shinL = -12 * Math.max(0, s);
-        a.shinR = -12 * Math.max(0, -s);
-        a.torso = 5 * Math.sin((b * Math.PI) / 2);
+        // 左右交互に腕を振る
+        a.upperArmL = 20 + 25 * s;
+        a.upperArmR = 20 - 25 * s;
+        a.foreArmL = 10 + 10 * Math.abs(s);
+        a.foreArmR = 10 + 10 * Math.abs(s);
+        a.thighL = 4 * Math.max(0, s);
+        a.thighR = 4 * Math.max(0, -s);
+        a.shinL = -8 * Math.max(0, s);
+        a.shinR = -8 * Math.max(0, -s);
+        a.torso = 3 * Math.sin((b * Math.PI) / 2);
     } else if (part === 1) {
-        // 両手を上げてフリフリ
+        // 両手を広げてフリフリ
         const w = Math.sin(b * Math.PI * 2);
-        a.upperArmL = 140 + 15 * w;
-        a.upperArmR = 140 - 15 * w;
-        a.foreArmL = 15 + 15 * w;
-        a.foreArmR = 15 - 15 * w;
-        a.thighL = a.thighR = 8 * Math.abs(s);
-        a.shinL = a.shinR = -16 * Math.abs(s);
-        a.torso = 6 * Math.sin(b * Math.PI);
+        a.upperArmL = 50 + 10 * w;
+        a.upperArmR = 50 - 10 * w;
+        a.foreArmL = 10 + 10 * w;
+        a.foreArmR = 10 - 10 * w;
+        a.thighL = a.thighR = 4 * Math.abs(s);
+        a.shinL = a.shinR = -8 * Math.abs(s);
+        a.torso = 4 * Math.sin(b * Math.PI);
     } else {
         // ひじを曲げてリズムを取る（回転しながら）
-        a.upperArmL = a.upperArmR = 60;
-        a.foreArmL = a.foreArmR = 50 + 40 * Math.abs(s);
-        a.thighL = 10 * Math.abs(s);
-        a.thighR = 10 * Math.abs(s);
-        a.shinL = a.shinR = -18 * Math.abs(s);
+        a.upperArmL = a.upperArmR = 30;
+        a.foreArmL = a.foreArmR = 20 + 25 * Math.abs(s);
+        a.thighL = a.thighR = 5 * Math.abs(s);
+        a.shinL = a.shinR = -10 * Math.abs(s);
         a.torso = 0;
     }
     for (const k of Object.keys(a)) a[k] *= env;
