@@ -1,5 +1,5 @@
-import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=24';
-import { createBodyRig, danceAngles } from './body-rig.js?v=22';
+import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=25';
+import { createBodyRig, danceAngles } from './body-rig.js?v=23';
 import { createDanceVideoPlayer, saveDanceVideo, loadDanceVideo, deleteDanceVideo } from './dance-video.js?v=14';
 
 // ===== 設定・定数 =====
@@ -328,7 +328,9 @@ const character = (() => {
                     const cur = photoExpr[side], tgt = target[side];
                     cur.bi += (tgt.bi - cur.bi) * 0.12;
                     cur.bo += (tgt.bo - cur.bo) * 0.12;
-                    cur.lid += ((blinking ? 1 : tgt.lid) - cur.lid) * (blinking ? 0.55 : 0.15);
+                    // 写真のまぶたは、まばたきと驚いたとき（見開く）以外は動かさない（半目に見えて怖いため）
+                    const lidTarget = blinking ? 1 : Math.min(0, tgt.lid);
+                    cur.lid += (lidTarget - cur.lid) * (blinking ? 0.55 : 0.2);
                 }
                 // 写真の口はゆっくり開け閉めしたほうが自然に見える
                 photoExpr.mouth += (mouthLevel * 0.85 - photoExpr.mouth) * 0.25;

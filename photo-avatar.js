@@ -1,5 +1,5 @@
 // 写真キャラ：人物の切り抜きと口パク
-import { extractPose } from './body-rig.js?v=22';
+import { extractPose } from './body-rig.js?v=23';
 // MediaPipe（Google）の画像処理をブラウザ内で動かすので、写真は外部に送られない。
 // 必要なモデルは初回だけダウンロードされ、以降はブラウザのキャッシュから読み込まれる。
 
