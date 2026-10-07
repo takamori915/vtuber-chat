@@ -109,13 +109,20 @@ button { font: inherit; cursor: pointer; }
     50% { transform: rotate(6deg); }
 }
 
-/* 写真モード：イラストの顔や体を隠し、写真・エフェクト・猫耳だけを表示する */
-.character .photo-avatar { display: none; transform-box: fill-box; transform-origin: 50% 100%; }
-.character.photo-mode .photo-avatar { display: inline; }
+/* 写真モード：イラストの顔や体を隠し、エフェクト・猫耳だけをSVGで表示する（写真は下の canvas） */
 .character.photo-mode #body > :not(#head),
-.character.photo-mode #head > :not(.photo-avatar):not(.fx):not(.cat-ears) { display: none !important; }
+.character.photo-mode #head > :not(.fx):not(.cat-ears) { display: none !important; }
 .character.photo-mode .fx-sad path:first-child { display: none; } /* 写真の上では涙の位置が合わないので汗だけ */
-.character.photo-mode .cat-ears { transform: translateY(-40px); } /* 写真の枠の上に耳を出す */
+.photo-layer { position: absolute; inset: 0; }
+.photo-move { position: absolute; inset: 0; transform-origin: 50% 63.5%; } /* 首の付け根（SVGの 200,330） */
+.photo-layer canvas {
+    position: absolute;
+    left: 15.5%;   /* SVG座標の 62/400 */
+    top: 12.3%;    /* 64/520 */
+    width: 69%;    /* 276/400 */
+    height: 60.8%; /* 316/520 */
+}
+.character-wrap.react .photo-layer { animation: react 0.45s ease-out; }
 
 /* 既定状態：ふつう */
 .character .eye-closed,
@@ -427,6 +434,8 @@ button { font: inherit; cursor: pointer; }
     font-weight: 700;
     cursor: pointer;
 }
+.settings label.check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 13px; }
+.settings label.check input { width: auto; margin: 0; }
 .crop canvas {
     display: block;
     width: min(240px, 100%);

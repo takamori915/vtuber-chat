@@ -1,8 +1,10 @@
+import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=8';
+
 // ===== 設定・定数 =====
 const STORAGE_KEYS = {
     settings: 'vtuberChat.settings',
     history: 'vtuberChat.history',
-    photo: 'vtuberChat.photo', // 写真モードの画像（data URL）。大きいので設定とは別に保存
+    photo: 'vtuberChat.photo', // 写真キャラ（画像と口の位置の JSON）。大きいので設定とは別に保存
 };
 
 const EMOTIONS = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'thinking', 'shy'];
@@ -78,7 +80,9 @@ const character = (() => {
     const head = document.getElementById('head');
     const pupils = svg.querySelectorAll('.pupil');
     const mouthOpen = svg.querySelector('.mouth-open');
-    const photo = svg.querySelector('.photo-avatar');
+    const wrap0 = document.getElementById('characterWrap');
+    const photoMove = document.getElementById('photoMove');
+    const photoRenderer = createPhotoRenderer(document.getElementById('photoCanvas'));
 
     let emotion = 'neutral';
     let speaking = false;
@@ -184,10 +188,18 @@ const character = (() => {
         mouthLevel += (target - mouthLevel) * 0.45;
         mouthOpen.style.transform = `scale(${0.75 + mouthLevel * 0.25}, ${Math.max(0.12, mouthLevel)})`;
 
-        // 写真モードでは口が動かせないので、話している間は写真を弾ませる
+        // 写真キャラ：イラストの頭と同じように動かし、口の位置が分かれば口パクする
         if (svg.classList.contains('photo-mode')) {
-            talkLevel += ((voiceLevel !== null || speaking ? mouthLevel : 0) - talkLevel) * 0.5;
-            photo.style.transform = `translateY(${-talkLevel * 9}px) scale(${1 + talkLevel * 0.025}, ${1 - talkLevel * 0.012})`;
+            const k = wrap0.clientWidth / 400; // SVG座標 → 画面のピクセル
+            let lift = 0;
+            if (photoRenderer.hasMouth) {
+                photoRenderer.update(mouthLevel);
+            } else {
+                // 口の位置が分からない写真は、話している間弾ませる
+                talkLevel += ((voiceLevel !== null || speaking ? mouthLevel : 0) - talkLevel) * 0.5;
+                lift = talkLevel * 9;
+            }
+            photoMove.style.transform = `translate(${tx * 4 * k}px, ${(ty * 2 + bob - lift) * k}px) rotate(${rot}deg)`;
         }
 
         requestAnimationFrame(frame);
@@ -200,6 +212,7 @@ const character = (() => {
         setEmotion,
         setSpeaking,
         setVoiceLevel(v) { voiceLevel = v; },
+        photo: photoRenderer,
         lookAt,
         get emotion() { return emotion; },
     };
@@ -1246,12 +1259,50 @@ appearanceResetBtn.addEventListener('click', () => {
 });
 
 // ===== 写真をキャラにする =====
-function applyPhoto(dataUrl) {
+// data: { image, cutout, face } または null（イラストに戻す）
+async function applyPhoto(data) {
     const svg = document.getElementById('character');
-    const img = document.getElementById('photoImage');
-    if (dataUrl) img.setAttribute('href', dataUrl);
-    else img.removeAttribute('href');
-    svg.classList.toggle('photo-mode', Boolean(dataUrl));
+    const layer = document.getElementById('photoLayer');
+    try {
+        await character.photo.load(data);
+    } catch (err) {
+        console.warn('写真を表示できませんでした', err);
+        data = null;
+    }
+    layer.hidden = !data;
+    svg.classList.toggle('photo-mode', Boolean(data));
+    placeEarsOnPhoto(data);
+}
+
+// 猫耳を写真の頭の上に乗せる（写真は SVG 座標の x:62〜338, y:64〜380 に表示している）
+function placeEarsOnPhoto(data) {
+    const ears = document.querySelector('#character .cat-ears');
+    if (!data) {
+        ears.style.transform = '';
+        return;
+    }
+    const toX = (v) => 62 + v * 276;
+    const toY = (v) => 64 + v * 316;
+    const f = data.face;
+    const centerX = f ? toX(f.nose.x) : 200;
+    const faceW = f?.faceLeft ? Math.abs(toX(f.faceRight.x) - toX(f.faceLeft.x)) : 160;
+    const scale = clamp(faceW / 160, 0.55, 1.4);
+    const top = toY(data.headTop || 0);
+    // 耳の付け根（SVGの y=118 あたり）が、頭のてっぺんより少し下に来るようにする
+    ears.style.transformBox = 'view-box';
+    ears.style.transformOrigin = '200px 118px';
+    ears.style.transform = `translate(${centerX - 200}px, ${top + 34 * scale - 118}px) scale(${scale})`;
+}
+
+function loadSavedPhoto() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEYS.photo);
+        if (!raw) return null;
+        // 以前の形式（画像の data URL だけ）にも対応
+        return raw.startsWith('data:') ? { image: raw, cutout: false, face: null } : JSON.parse(raw);
+    } catch {
+        return null;
+    }
 }
 
 const photoInput = document.getElementById('photoInput');
@@ -1359,25 +1410,47 @@ document.getElementById('cropCancelBtn').addEventListener('click', () => {
     setPhotoStatus(PHOTO_STATUS_DEFAULT);
 });
 
-document.getElementById('cropApplyBtn').addEventListener('click', () => {
+const cropApplyBtn = document.getElementById('cropApplyBtn');
+const cutoutCheck = document.getElementById('cutoutCheck');
+
+cropApplyBtn.addEventListener('click', async () => {
     if (!crop.img) return;
     const out = document.createElement('canvas');
     out.width = cropCanvas.width;
     out.height = cropCanvas.height;
     crop.draw(out);
-    const dataUrl = out.toDataURL('image/jpeg', 0.85);
+
+    cropApplyBtn.disabled = true;
+    setPhotoStatus('人物と口の位置を探しています…（初回は準備に少し時間がかかります）');
+    character.setEmotion('thinking');
+    let data;
+    let note = '';
     try {
-        localStorage.setItem(STORAGE_KEYS.photo, dataUrl);
-    } catch {
-        setPhotoStatus('写真を保存できませんでした（ブラウザの保存容量が足りないかも）。今回だけ表示します。', true);
-        applyPhoto(dataUrl);
-        closeCrop();
-        return;
+        data = await processPhoto(out, { cutout: cutoutCheck.checked });
+        if (!data.face) note = '顔が見つからなかったので、口パクの代わりに弾んで話します。';
+    } catch (err) {
+        console.warn('写真の処理に失敗しました', err);
+        // 切り抜きの準備ができなくても、写真はそのまま使えるようにする
+        data = { image: out.toDataURL('image/jpeg', 0.85), cutout: false, face: null };
+        note = '切り抜きと口パクの準備ができなかったので、写真をそのまま使います（通信状況を確認してね）。';
+    } finally {
+        cropApplyBtn.disabled = false;
     }
-    applyPhoto(dataUrl);
+
+    let saved = true;
+    try {
+        localStorage.setItem(STORAGE_KEYS.photo, JSON.stringify(data));
+    } catch {
+        saved = false;
+    }
+    await applyPhoto(data);
     closeCrop();
     character.setEmotion('happy', { holdMs: 4000 });
-    setPhotoStatus('写真をキャラにしました！「イラストに戻す」でいつでも戻せます。');
+    setPhotoStatus(
+        (saved ? '写真をキャラにしました！「イラストに戻す」でいつでも戻せます。' : '写真を保存できませんでした（ブラウザの保存容量が足りないかも）。今回だけ表示します。') +
+            (note ? ` ${note}` : ''),
+        !saved,
+    );
 });
 
 photoClearBtn.addEventListener('click', () => {
@@ -1424,7 +1497,7 @@ document.getElementById('clearHistoryBtn').addEventListener('click', () => {
 
 // ===== 起動 =====
 applyAppearance(settings.appearance);
-try { applyPhoto(localStorage.getItem(STORAGE_KEYS.photo)); } catch { /* 保存領域が使えない */ }
+applyPhoto(loadSavedPhoto());
 renderHistory();
 if (!settings.apiKey) {
     addMessage('system', 'デモモードで動作中です。右上の ⚙ から Anthropic API キーを設定すると AI と会話できます。');
