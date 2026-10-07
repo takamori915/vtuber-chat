@@ -98,12 +98,12 @@ button { font: inherit; cursor: pointer; }
 }
 /* 首の付け根を回転の中心にする（ツインテールを含めても揺れが大きくならないように） */
 .character .head { transform-box: view-box; transform-origin: 200px 330px; }
-.character .body { transform-origin: 50% 100%; animation: breathe 3.6s ease-in-out infinite; }
+.character .body { transform-origin: 50% 100%; }
 @keyframes breathe {
     0%, 100% { transform: scale(1, 1); }
     50% { transform: scale(1.006, 1.012); }
 }
-.character .ahoge { transform-origin: 20% 100%; animation: ahoge 2.8s ease-in-out infinite; }
+.character .ahoge { transform-origin: 20% 100%; }
 @keyframes ahoge {
     0%, 100% { transform: rotate(-4deg); }
     50% { transform: rotate(6deg); }

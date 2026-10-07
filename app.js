@@ -255,6 +255,7 @@ const character = (() => {
 
     // 毎フレームの更新（揺れ・視線・口パク）
     let t0 = performance.now();
+    let curTilt = 0;
     function frame(now) {
         const t = (now - t0) / 1000;
         const pose = POSE[emotion];
@@ -271,10 +272,11 @@ const character = (() => {
         const gy = clamp(ty * 4 + pose.gy, -7, 7);
         pupils.forEach((p) => { p.style.transform = `translate(${gx}px, ${gy}px)`; });
 
-        const sway = Math.sin(t * 0.9) * 1.6;
-        const rot = sway + pose.tilt + tx * 3;
-        const bob = speaking ? Math.abs(Math.sin(t * 7)) * -2 : 0;
-        head.style.transform = `translate(${tx * 4}px, ${ty * 2 + bob}px) rotate(${rot}deg)`;
+        // 頭は常に揺らさず、表情に合わせた首の傾きだけをゆっくり変える
+        curTilt += (pose.tilt - curTilt) * 0.12;
+        const rot = Math.abs(curTilt) < 0.01 ? 0 : curTilt;
+        const bob = 0;
+        head.style.transform = rot ? `rotate(${rot}deg)` : '';
 
         // 口パク：発話中はランダムに開閉、驚きは開いたまま
         let target = 0;
@@ -310,7 +312,7 @@ const character = (() => {
                 talkLevel += ((voiceLevel !== null || speaking ? mouthLevel : 0) - talkLevel) * 0.5;
                 lift = talkLevel * 9;
             }
-            photoMove.style.transform = `translate(${tx * 4 * k}px, ${(ty * 2 + bob - lift) * k}px) rotate(${rot}deg)`;
+            photoMove.style.transform = `translate(0px, ${(bob - lift) * k}px) rotate(${rot}deg)`;
         }
 
         const ds = danceState(now);
