@@ -202,71 +202,51 @@ function clamp01(v) {
 
 // ===== 表示（毎フレームの描画） =====
 // 保存しておいた写真から下地を作り、表情（眉・まぶた・口）に合わせて描き直す。
-// 顔が傾いていても自然に動くよう、目（または口）の傾きに合わせて回転した座標で変形する。
 //
-// 変形は「縦の細い帯ごとに、上下方向だけ伸び縮みさせる」方法で行う：
-// 帯ごとに [元の高さ → 描く高さ] の対応点を決め、区間ごとに drawImage で引き伸ばす。
-// 中央ほど大きく、端に向かってなめらかに 0 に戻すので、継ぎ目が出ない。
+// 変形は「1ピクセルごとに、上下方向へなめらかにずらす」方法で行う。
+// 縦の各列について、いくつかの高さでのずれ量を決め、その間をなめらかにつなぐ。
+// 列ごとのずれ量も左右に向かってなめらかに 0 へ戻すので、継ぎ目や折れ目が出ない。
+// 顔が傾いていても自然に動くよう、目（または口）の傾きに合わせて回転した座標で計算する。
 export function createPhotoRenderer(canvas) {
     const g = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
-    let base = null; // 縁取りなどを付けた下地
-    let aligned = null; // 顔の傾きを打ち消すように回転した下地
+    let base = null; // 影を付けた下地
+    let src = null; // 顔の傾きを打ち消すように回転した下地のピクセル
     let geo = null; // 顔の傾きと、回転後の座標での各点
     let lastKey = '';
+    const patch = document.createElement('canvas');
+    const pg = patch.getContext('2d');
 
-    function makeBase(img, cutout) {
+    function newCanvas() {
         const c = document.createElement('canvas');
         c.width = W;
         c.height = H;
-        const b = c.getContext('2d');
-        if (cutout) {
-            // シール風の白い縁取り
-            const r = 7;
-            const ring = document.createElement('canvas');
-            ring.width = W;
-            ring.height = H;
-            const rg = ring.getContext('2d');
-            for (let a = 0; a < 16; a++) {
-                const t = (a / 16) * Math.PI * 2;
-                rg.drawImage(img, Math.cos(t) * r, Math.sin(t) * r, W, H);
-            }
-            rg.globalCompositeOperation = 'source-in';
-            rg.fillStyle = '#ffffff';
-            rg.fillRect(0, 0, W, H);
-            b.shadowColor = 'rgba(0,0,0,0.35)';
-            b.shadowBlur = 18;
-            b.shadowOffsetY = 6;
-            b.drawImage(ring, 0, 0);
-            b.shadowColor = 'transparent';
-            b.drawImage(img, 0, 0, W, H);
-        } else {
-            // 角丸の枠に入れる
-            const m = 8, rad = 64;
-            b.fillStyle = '#ffffff';
-            roundRect(b, 0, 0, W, H, rad + m);
-            b.fill();
-            b.save();
-            roundRect(b, m, m, W - m * 2, H - m * 2, rad);
-            b.clip();
-            b.drawImage(img, 0, 0, W, H);
-            b.restore();
-            b.strokeStyle = '#ff8fb8';
-            b.lineWidth = 5;
-            roundRect(b, 2.5, 2.5, W - 5, H - 5, rad + m);
-            b.stroke();
-        }
         return c;
     }
 
-    function roundRect(ctx, x, y, w, h, r) {
-        ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.arcTo(x + w, y, x + w, y + h, r);
-        ctx.arcTo(x + w, y + h, x, y + h, r);
-        ctx.arcTo(x, y + h, x, y, r);
-        ctx.arcTo(x, y, x + w, y, r);
-        ctx.closePath();
+    function makeBase(img, cutout) {
+        const c = newCanvas();
+        const b = c.getContext('2d');
+        if (cutout) {
+            // 背景から少し浮かせる影だけ付ける
+            b.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            b.shadowBlur = 16;
+            b.shadowOffsetY = 6;
+            b.drawImage(img, 0, 0, W, H);
+        } else {
+            // 枠線なしの角丸
+            const r = 56;
+            b.beginPath();
+            b.moveTo(r, 0);
+            b.arcTo(W, 0, W, H, r);
+            b.arcTo(W, H, 0, H, r);
+            b.arcTo(0, H, 0, 0, r);
+            b.arcTo(0, 0, W, 0, r);
+            b.closePath();
+            b.clip();
+            b.drawImage(img, 0, 0, W, H);
+        }
+        return c;
     }
 
     // 顔の傾きを求め、各点を「鼻を原点・目が水平」の座標に直す
@@ -288,30 +268,92 @@ export function createPhotoRenderer(canvas) {
         return { theta, fc, pts, hasEyes, io };
     }
 
-    function makeAligned() {
-        const c = document.createElement('canvas');
-        c.width = W;
-        c.height = H;
+    function makeSource() {
+        const c = newCanvas();
         const a = c.getContext('2d');
         a.translate(W / 2, H / 2);
         a.rotate(-geo.theta);
         a.translate(-geo.fc.x, -geo.fc.y);
         a.drawImage(base, 0, 0);
-        return c;
+        return a.getImageData(0, 0, W, H).data;
     }
 
-    // 帯ごとの縦方向の伸び縮み。knotsAt(x) は [元のy, 描くy] の並び（上から順）
-    function columnWarp(x0, x1, knotsAt, step = 2) {
-        for (let x = Math.floor(x0); x < x1; x += step) {
-            const k = knotsAt(x + step / 2);
-            if (!k || k.every(([sy, dy]) => Math.abs(dy - sy) < 0.3)) continue;
-            for (let i = 0; i < k.length - 1; i++) {
-                const [sy0, dy0] = k[i];
-                const [sy1, dy1] = k[i + 1];
-                if (sy1 - sy0 < 0.5 || dy1 - dy0 < 0.5) continue;
-                g.drawImage(aligned, x + W / 2, sy0 + H / 2, step, sy1 - sy0, x, dy0, step, dy1 - dy0);
+    // 回転後の座標 (x, y) の色をなめらかに（4点の平均で）取り出す
+    function sample(x, y, out, o) {
+        x += W / 2;
+        y += H / 2;
+        if (x < 0 || y < 0 || x >= W - 1 || y >= H - 1) {
+            out[o] = out[o + 1] = out[o + 2] = out[o + 3] = 0;
+            return;
+        }
+        const x0 = x | 0, y0 = y | 0, fx = x - x0, fy = y - y0;
+        const i = (y0 * W + x0) * 4, j = i + W * 4;
+        for (let c = 0; c < 4; c++) {
+            const top = src[i + c] + (src[i + 4 + c] - src[i + c]) * fx;
+            const bot = src[j + c] + (src[j + 4 + c] - src[j + c]) * fx;
+            out[o + c] = top + (bot - top) * fy;
+        }
+    }
+
+    // knots: [描く位置のy, ずれ量] の並び（上から順）。間をなめらかにつなぐ
+    function displacement(knots, y) {
+        if (y <= knots[0][0]) return knots[0][1];
+        for (let k = 0; k < knots.length - 1; k++) {
+            const [y0, d0] = knots[k];
+            const [y1, d1] = knots[k + 1];
+            if (y <= y1) {
+                const t = y1 > y0 ? (y - y0) / (y1 - y0) : 1;
+                // 直線とS字の中間：なめらかで、引き伸ばしすぎても折り返さない
+                const s = 0.5 * t + 0.5 * t * t * (3 - 2 * t);
+                return d0 + (d1 - d0) * s;
             }
         }
+        return knots[knots.length - 1][1];
+    }
+
+    // 回転後の座標で矩形の範囲を変形して描く。
+    // column(x) は { knots, gap?: [上, 下], interior?(x, y, out, o) } を返す
+    function warpRegion(x0, y0, x1, y1, column) {
+        x0 = Math.floor(x0); y0 = Math.floor(y0);
+        x1 = Math.ceil(x1); y1 = Math.ceil(y1);
+        const w = x1 - x0, h = y1 - y0;
+        if (w < 4 || h < 4) return;
+        if (patch.width !== w || patch.height !== h) {
+            patch.width = w;
+            patch.height = h;
+        }
+        const img = pg.createImageData(w, h);
+        const d = img.data;
+        const feather = 6; // 端はぼかして下地となじませる
+        for (let i = 0; i < w; i++) {
+            const x = x0 + i + 0.5;
+            const col = column(x);
+            const ex = Math.min(i, w - 1 - i) / feather;
+            for (let j = 0; j < h; j++) {
+                const y = y0 + j + 0.5;
+                const o = (j * w + i) * 4;
+                const gap = col.gap;
+                if (gap && y > gap[0] && y < gap[1]) {
+                    col.interior(x, y, d, o);
+                    // 唇との境目を1ピクセルぶんなめらかに
+                    const edge = Math.min(y - gap[0], gap[1] - y);
+                    if (edge < 1) {
+                        const r = d[o], gg = d[o + 1], b = d[o + 2];
+                        sample(x, y - displacement(col.knots, y < (gap[0] + gap[1]) / 2 ? gap[0] : gap[1]), d, o);
+                        d[o] = r + (d[o] - r) * (1 - edge);
+                        d[o + 1] = gg + (d[o + 1] - gg) * (1 - edge);
+                        d[o + 2] = b + (d[o + 2] - b) * (1 - edge);
+                        d[o + 3] = 255;
+                    }
+                } else {
+                    sample(x, y - displacement(col.knots, y), d, o);
+                }
+                const a = Math.min(1, ex, Math.min(j, h - 1 - j) / feather);
+                if (a < 1) d[o + 3] *= a;
+            }
+        }
+        pg.putImageData(img, 0, 0);
+        g.drawImage(patch, x0, y0);
     }
 
     // 中央が 1、端に向かってなめらかに 0 になる重み（|v| < flat の間は 1）
@@ -327,74 +369,73 @@ export function createPhotoRenderer(canvas) {
     function warpEye(side, e) {
         const p = geo.pts;
         const outer = p[`eye${side}Outer`], inner = p[`eye${side}Inner`];
-        const top = p[`eye${side}Top`], bottom = p[`eye${side}Bottom`];
         const bIn = p[`brow${side}Inner`], bOut = p[`brow${side}Outer`];
         const browY = (p[`brow${side}Mid`].y + p[`brow${side}MidLow`].y) / 2;
-        const eyeTop = top.y, eyeBot = bottom.y;
+        const eyeTop = p[`eye${side}Top`].y, eyeBot = p[`eye${side}Bottom`].y;
         const eyeH = Math.max(2, eyeBot - eyeTop);
         const gap = Math.max(4, eyeTop - browY);
-        const regionTop = browY - gap * 1.1;
-        const regionBottom = eyeBot + geo.io * 0.1;
         const unit = geo.io * 0.075; // 眉を動かす量の単位
+        if (Math.max(Math.abs(e.bi), Math.abs(e.bo)) * unit < 0.3 && Math.abs(e.lid) * eyeH < 0.3) return;
+
+        const regionTop = browY - gap * 1.4;
+        const regionBottom = eyeBot + geo.io * 0.12;
         const xs = [outer.x, inner.x, bIn.x, bOut.x];
-        const xMin = Math.min(...xs) - geo.io * 0.06;
-        const xMax = Math.max(...xs) + geo.io * 0.06;
+        const xMin = Math.min(...xs) - geo.io * 0.08;
+        const xMax = Math.max(...xs) + geo.io * 0.08;
         const xMid = (xMin + xMax) / 2, half = (xMax - xMin) / 2;
         const eyeCx = (outer.x + inner.x) / 2, eyeHalf = Math.abs(outer.x - inner.x) / 2;
 
-        columnWarp(xMin, xMax, (x) => {
+        warpRegion(xMin, regionTop, xMax, regionBottom, (x) => {
             const t = clamp01((x - bIn.x) / (bOut.x - bIn.x)); // 眉の内側0〜外側1
             // 眉が目に近い顔でも、まぶたまで押し下げないよう下げ幅を眉と目の間隔で抑える
-            const bs = Math.max(-gap, Math.min(gap * 0.4, (e.bi * (1 - t) + e.bo * t) * unit)) * taper((x - xMid) / half, 0.55);
-            let ls = e.lid * eyeH * taper((x - eyeCx) / (eyeHalf * 1.3), 0.25);
-            // 並び順が入れ替わらないように制限する
+            let bs = Math.max(-gap, Math.min(gap * 0.4, (e.bi * (1 - t) + e.bo * t) * unit)) * taper((x - xMid) / half, 0.5);
+            let ls = e.lid * eyeH * taper((x - eyeCx) / (eyeHalf * 1.35), 0.2);
+            // 並び順が入れ替わらないように制限する（描く位置で）
             let dBrow = browY + bs;
-            let dTop = eyeTop + ls;
-            dTop = Math.min(dTop, eyeBot - 0.6);
-            dBrow = Math.min(dBrow, dTop - 2);
-            dBrow = Math.max(dBrow, regionTop + 2);
+            let dTop = Math.min(eyeTop + ls, eyeBot - 0.6);
+            dBrow = Math.max(Math.min(dBrow, dTop - 2), regionTop + 2);
             dTop = Math.max(dTop, dBrow + 2);
-            return [[regionTop, regionTop], [browY, dBrow], [eyeTop, dTop], [eyeBot, eyeBot], [regionBottom, regionBottom]];
-        }, 2);
+            return {
+                knots: [[regionTop, 0], [dBrow, dBrow - browY], [dTop, dTop - eyeTop], [eyeBot, 0], [regionBottom, 0]],
+            };
+        });
     }
 
-    // 口：下唇から下を下げて、そのすき間に口の中を描く
-    function drawMouth(level) {
+    // 口：上唇を少し上げ、下唇から下をなめらかに下げて、すき間に口の中を描く
+    function warpMouth(level) {
         const p = geo.pts;
         const L = p.mouthLeft, R = p.mouthRight;
         const cx = (L.x + R.x) / 2;
         const lipY = (p.upperLipInner.y + p.lowerLipInner.y) / 2;
-        const mouthW = Math.max(4, R.x - L.x);
-        const open = level * mouthW * 0.32;
-        const bottom = p.chin.y + (p.chin.y - lipY) * 0.6;
-        const span = mouthW * 1.1;
+        const hw = Math.max(2, (R.x - L.x) / 2);
+        const open = level * hw * 0.7;
+        if (open < 0.3) return;
+        const topY = lipY - Math.max(6, lipY - p.nose.y) * 0.75; // 鼻の下あたりまで
+        const bottom = p.chin.y + (p.chin.y - lipY) * 0.5; // あごの少し下まで
+        const midDown = lipY + (bottom - lipY) * 0.45;
 
-        g.save();
-        g.beginPath();
-        g.moveTo(L.x, L.y);
-        g.quadraticCurveTo(cx, lipY - open * 0.15, R.x, R.y);
-        g.quadraticCurveTo(cx, lipY + open * 1.9, L.x, L.y);
-        g.closePath();
-        const grad = g.createLinearGradient(0, lipY, 0, lipY + open);
-        grad.addColorStop(0, '#2b0b12');
-        grad.addColorStop(1, '#5c1f2b');
-        g.fillStyle = grad;
-        g.shadowColor = '#3a1018';
-        g.shadowBlur = 3;
-        g.fill();
-        g.clip();
-        // 舌（奥のほうに少しだけ見える）
-        g.shadowBlur = 0;
-        g.beginPath();
-        g.ellipse(cx, lipY + open * 1.05, mouthW * 0.24, open * 0.32, 0, 0, Math.PI * 2);
-        g.fillStyle = 'rgba(190, 86, 104, 0.75)';
-        g.fill();
-        g.restore();
-
-        columnWarp(cx - span, cx + span, (x) => {
-            const s = open * taper((x - cx) / span);
-            return [[lipY, lipY + s], [bottom, bottom]];
-        }, 2);
+        warpRegion(cx - hw * 1.3, topY, cx + hw * 1.3, bottom, (x) => {
+            const o = open * taper((x - cx) / (hw * 1.12), 0.12);
+            const up = o * 0.22, down = o * 0.78;
+            const knots = [[topY, 0], [lipY - up, -up], [lipY + down, down], [midDown + down * 0.5, down * 0.45], [bottom, 0]];
+            if (o < 0.4) return { knots };
+            return {
+                knots,
+                gap: [lipY - up, lipY + down],
+                interior(px, py, out, oi) {
+                    // 奥ほど暗い口の中と、下のほうに少しだけ見える舌
+                    const r = (py - (lipY - up)) / (up + down);
+                    let cr = 43 + 49 * r, cg = 11 + 20 * r, cb = 18 + 25 * r;
+                    const tx = (px - cx) / (hw * 0.6), ty = (r - 1) / 0.5;
+                    const q = tx * tx + ty * ty;
+                    if (q < 1) {
+                        const a = 0.7 * Math.sqrt(1 - q);
+                        cr += (190 - cr) * a; cg += (86 - cg) * a; cb += (104 - cb) * a;
+                    }
+                    out[oi] = cr; out[oi + 1] = cg; out[oi + 2] = cb; out[oi + 3] = 255;
+                },
+            };
+        });
     }
 
     // expr: { mouth: 0〜1, L: {bi, bo, lid}, R: {bi, bo, lid} }
@@ -410,14 +451,14 @@ export function createPhotoRenderer(canvas) {
             warpEye('L', expr.L);
             warpEye('R', expr.R);
         }
-        if (expr.mouth > 0.02) drawMouth(expr.mouth);
+        warpMouth(expr.mouth);
         g.restore();
     }
 
     return {
         async load(data) {
             base = null;
-            aligned = null;
+            src = null;
             geo = null;
             lastKey = '';
             if (!data) {
@@ -430,7 +471,7 @@ export function createPhotoRenderer(canvas) {
             base = makeBase(img, data.cutout);
             if (data.face) {
                 geo = prepare(data.face);
-                aligned = makeAligned();
+                src = makeSource();
             }
             render({ mouth: 0, L: { bi: 0, bo: 0, lid: 0 }, R: { bi: 0, bo: 0, lid: 0 } });
         },
@@ -439,7 +480,7 @@ export function createPhotoRenderer(canvas) {
         get hasEyes() { return Boolean(geo?.hasEyes); },
         // 値が変わったときだけ描き直す
         update(expr) {
-            const q = (v) => Math.round(v * 30);
+            const q = (v) => Math.round(v * 60);
             const key = [expr.mouth, expr.L.bi, expr.L.bo, expr.L.lid, expr.R.bi, expr.R.bo, expr.R.lid].map(q).join(',');
             if (key === lastKey) return;
             lastKey = key;

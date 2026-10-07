@@ -111,7 +111,7 @@ button { font: inherit; cursor: pointer; }
 
 /* 写真モード：イラストの顔や体を隠し、エフェクト・猫耳だけをSVGで表示する（写真は下の canvas） */
 .character.photo-mode #body > :not(#head),
-.character.photo-mode #head > :not(.fx):not(.cat-ears) { display: none !important; }
+.character.photo-mode #head > :not(.fx) { display: none !important; } /* 猫耳も出さない */
 .character.photo-mode .fx-sad path:first-child { display: none; } /* 写真の上では涙の位置が合わないので汗だけ */
 .photo-layer { position: absolute; inset: 0; }
 .photo-move { position: absolute; inset: 0; transform-origin: 50% 63.5%; } /* 首の付け根（SVGの 200,330） */

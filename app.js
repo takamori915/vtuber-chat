@@ -1,4 +1,4 @@
-import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=9';
+import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=10';
 
 // ===== 設定・定数 =====
 const STORAGE_KEYS = {
@@ -212,11 +212,12 @@ const character = (() => {
                 const blinking = svg.classList.contains('blink');
                 for (const side of ['L', 'R']) {
                     const cur = photoExpr[side], tgt = target[side];
-                    cur.bi += (tgt.bi - cur.bi) * 0.2;
-                    cur.bo += (tgt.bo - cur.bo) * 0.2;
-                    cur.lid += ((blinking ? 1 : tgt.lid) - cur.lid) * (blinking ? 0.7 : 0.25);
+                    cur.bi += (tgt.bi - cur.bi) * 0.12;
+                    cur.bo += (tgt.bo - cur.bo) * 0.12;
+                    cur.lid += ((blinking ? 1 : tgt.lid) - cur.lid) * (blinking ? 0.55 : 0.15);
                 }
-                photoExpr.mouth = mouthLevel;
+                // 写真の口はゆっくり開け閉めしたほうが自然に見える
+                photoExpr.mouth += (mouthLevel * 0.85 - photoExpr.mouth) * 0.25;
                 photoRenderer.update(photoExpr);
             } else {
                 // 口の位置が分からない写真は、話している間弾ませる
@@ -1295,28 +1296,8 @@ async function applyPhoto(data) {
     }
     layer.hidden = !data;
     svg.classList.toggle('photo-mode', Boolean(data));
-    placeEarsOnPhoto(data);
 }
 
-// 猫耳を写真の頭の上に乗せる（写真は SVG 座標の x:62〜338, y:64〜380 に表示している）
-function placeEarsOnPhoto(data) {
-    const ears = document.querySelector('#character .cat-ears');
-    if (!data) {
-        ears.style.transform = '';
-        return;
-    }
-    const toX = (v) => 62 + v * 276;
-    const toY = (v) => 64 + v * 316;
-    const f = data.face;
-    const centerX = f ? toX(f.nose.x) : 200;
-    const faceW = f?.faceLeft ? Math.abs(toX(f.faceRight.x) - toX(f.faceLeft.x)) : 160;
-    const scale = clamp(faceW / 160, 0.55, 1.4);
-    const top = toY(data.headTop || 0);
-    // 耳の付け根（SVGの y=118 あたり）が、頭のてっぺんより少し下に来るようにする
-    ears.style.transformBox = 'view-box';
-    ears.style.transformOrigin = '200px 118px';
-    ears.style.transform = `translate(${centerX - 200}px, ${top + 34 * scale - 118}px) scale(${scale})`;
-}
 
 function loadSavedPhoto() {
     try {
