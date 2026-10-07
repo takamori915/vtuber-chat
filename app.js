@@ -16,6 +16,24 @@ const DEFAULT_SETTINGS = {
     charName: 'ルミ',
     persona: DEFAULT_PERSONA,
     tts: false,
+    appearance: null, // null のときは DEFAULT_APPEARANCE
+};
+
+// キャラクターの見た目（AIが設定画面のプロンプトから決める）
+const DEFAULT_APPEARANCE = {
+    hairStyle: 'twintails',
+    hairColor: '#a48af5',
+    hairTipColor: '#f4a9d8',
+    eyeColor: '#4f6fd8',
+    skinColor: '#fff1ea',
+    outfitColor: '#34305e',
+    collarColor: '#fdfbff',
+    accentColor: '#ff6fa5',
+    catEars: true,
+    earColor: '#fdf7ff',
+    hairRibbons: true,
+    hairpin: true,
+    ahoge: true,
 };
 
 // 送信する履歴の上限（往復数ではなくメッセージ数）
@@ -340,27 +358,20 @@ function buildSystemPrompt() {
 }
 
 let anthropicModule = null;
-async function getClient() {
+async function getClient(apiKey = settings.apiKey) {
     if (!anthropicModule) {
         anthropicModule = await import('@anthropic-ai/sdk');
     }
     const Anthropic = anthropicModule.default;
     return {
         Anthropic,
-        client: new Anthropic({ apiKey: settings.apiKey, dangerouslyAllowBrowser: true }),
+        client: new Anthropic({ apiKey, dangerouslyAllowBrowser: true }),
     };
 }
 
-async function streamClaude(messages, writer) {
-    const { Anthropic, client } = await getClient();
-    const model = settings.model;
-
-    const params = {
-        model,
-        max_tokens: 8000,
-        system: buildSystemPrompt(),
-        messages,
-    };
+// モデルごとの共通パラメータ
+function baseParams(model) {
+    const params = { model };
     // 雑談用途なので推論の深さは低めに（Haiku 4.5 は effort 非対応）
     if (model !== 'claude-haiku-4-5') {
         params.output_config = { effort: 'low' };
@@ -370,6 +381,39 @@ async function streamClaude(messages, writer) {
         params.betas = ['server-side-fallback-2026-07-01'];
         params.fallbacks = 'default';
     }
+    return params;
+}
+
+function toUserFacingError(err, Anthropic) {
+    if (err instanceof Anthropic.AuthenticationError) {
+        return new UserFacingError('APIキーが正しくないみたい…設定を確認してね。');
+    }
+    if (err instanceof Anthropic.PermissionDeniedError) {
+        return new UserFacingError('このAPIキーではこのモデルを使えないみたい。設定でモデルを変えてみてね。');
+    }
+    if (err instanceof Anthropic.RateLimitError) {
+        return new UserFacingError('アクセスが集中してるみたい。少し待ってからもう一度試してね。');
+    }
+    if (err instanceof Anthropic.BadRequestError) {
+        return new UserFacingError(`リクエストに問題があったみたい: ${err.message}`);
+    }
+    if (err instanceof Anthropic.APIConnectionError) {
+        return new UserFacingError('通信に失敗しちゃった…ネットワークを確認してね。');
+    }
+    if (err instanceof Anthropic.APIError) {
+        return new UserFacingError(`APIエラーが発生しました（${err.status ?? '不明'}）。時間をおいて試してね。`);
+    }
+    return err;
+}
+
+async function streamClaude(messages, writer) {
+    const { Anthropic, client } = await getClient();
+    const params = {
+        ...baseParams(settings.model),
+        max_tokens: 8000,
+        system: buildSystemPrompt(),
+        messages,
+    };
 
     try {
         const stream = client.beta.messages.stream(params);
@@ -381,29 +425,152 @@ async function streamClaude(messages, writer) {
         const final = await stream.finalMessage();
         return { stopReason: final.stop_reason };
     } catch (err) {
-        if (err instanceof Anthropic.AuthenticationError) {
-            throw new UserFacingError('APIキーが正しくないみたい…設定を確認してね。');
-        }
-        if (err instanceof Anthropic.PermissionDeniedError) {
-            throw new UserFacingError('このAPIキーではこのモデルを使えないみたい。設定でモデルを変えてみてね。');
-        }
-        if (err instanceof Anthropic.RateLimitError) {
-            throw new UserFacingError('アクセスが集中してるみたい。少し待ってからもう一度話しかけてね。');
-        }
-        if (err instanceof Anthropic.BadRequestError) {
-            throw new UserFacingError(`リクエストに問題があったみたい: ${err.message}`);
-        }
-        if (err instanceof Anthropic.APIConnectionError) {
-            throw new UserFacingError('通信に失敗しちゃった…ネットワークを確認してね。');
-        }
-        if (err instanceof Anthropic.APIError) {
-            throw new UserFacingError(`APIエラーが発生しました（${err.status ?? '不明'}）。時間をおいて試してね。`);
-        }
-        throw err;
+        throw toUserFacingError(err, Anthropic);
     }
 }
 
 class UserFacingError extends Error {}
+
+// ===== 見た目の変更 =====
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+const HAIR_STYLES = ['twintails', 'long', 'short'];
+
+function hexToRgb(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+// a と b を t (0〜1) の割合で混ぜた色
+function mix(a, b, t) {
+    const ca = hexToRgb(a);
+    const cb = hexToRgb(b);
+    return '#' + ca.map((v, i) => Math.round(v + (cb[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+
+// AIの出力に不正な値があっても絵が壊れないよう、項目ごとに既定値で補う
+function normalizeAppearance(a) {
+    const out = { ...DEFAULT_APPEARANCE };
+    if (!a || typeof a !== 'object') return out;
+    for (const [key, def] of Object.entries(DEFAULT_APPEARANCE)) {
+        const v = a[key];
+        if (key === 'hairStyle') {
+            if (HAIR_STYLES.includes(v)) out[key] = v;
+        } else if (typeof def === 'boolean') {
+            if (typeof v === 'boolean') out[key] = v;
+        } else if (typeof v === 'string' && HEX_RE.test(v)) {
+            out[key] = v.toLowerCase();
+        }
+    }
+    return out;
+}
+
+function applyAppearance(raw) {
+    const a = normalizeAppearance(raw);
+    const svg = document.getElementById('character');
+    const setStops = (id, colors) => {
+        svg.querySelectorAll(`#${id} stop`).forEach((stop, i) => stop.setAttribute('stop-color', colors[i]));
+    };
+    const fill = (selector, color) => {
+        svg.querySelectorAll(selector).forEach((el) => el.setAttribute('fill', color));
+    };
+    const show = (selector, visible) => {
+        svg.querySelectorAll(selector).forEach((el) => { el.style.display = visible ? '' : 'none'; });
+    };
+
+    setStops('hairGrad', [mix(a.hairColor, '#ffffff', 0.45), a.hairColor, a.hairTipColor]);
+    setStops('hairFront', [mix(a.hairColor, '#ffffff', 0.4), mix(a.hairColor, '#000000', 0.05)]);
+    setStops('hairShade', [mix(a.hairColor, '#000000', 0.18), mix(a.hairTipColor, '#000000', 0.1)]);
+    svg.querySelector('.brows').setAttribute('stroke', mix(a.hairColor, '#000000', 0.35));
+    setStops('irisGrad', [
+        mix(a.eyeColor, '#000000', 0.5),
+        a.eyeColor,
+        mix(a.eyeColor, '#ffffff', 0.45),
+        mix(a.eyeColor, '#ffffff', 0.8),
+    ]);
+    setStops('skinGrad', [a.skinColor, mix(a.skinColor, '#f0b8a8', 0.15)]);
+    fill('.skin', mix(a.skinColor, '#f0b8a8', 0.15));
+    fill('.skin-shade', mix(a.skinColor, '#d98a78', 0.3));
+    setStops('outfitGrad', [a.outfitColor, mix(a.outfitColor, '#000000', 0.35)]);
+    fill('.collar', a.collarColor);
+    fill('.accent', a.accentColor);
+    fill('.accent-light', mix(a.accentColor, '#ffffff', 0.3));
+    svg.querySelectorAll('.accent-stroke').forEach((el) => el.setAttribute('stroke', mix(a.accentColor, '#ffffff', 0.2)));
+    fill('.ear-outer', a.earColor);
+    fill('.ear-inner', mix(a.accentColor, '#ffffff', 0.5));
+
+    show('.twin-tails', a.hairStyle === 'twintails');
+    show('.long-hair', a.hairStyle === 'long');
+    show('.cat-ears', a.catEars);
+    show('.hair-ribbons', a.hairRibbons);
+    show('.hairpin', a.hairpin);
+    show('.ahoge', a.ahoge);
+}
+
+const APPEARANCE_SCHEMA = {
+    type: 'object',
+    additionalProperties: false,
+    required: [...Object.keys(DEFAULT_APPEARANCE), 'summary'],
+    properties: {
+        hairStyle: { type: 'string', enum: HAIR_STYLES, description: 'twintails=ツインテール, long=ロングヘア, short=ショート/ボブ' },
+        hairColor: { type: 'string', description: '髪のメインカラー（#RRGGBB）' },
+        hairTipColor: { type: 'string', description: '毛先の色（#RRGGBB）。グラデーションにしないなら hairColor と同じ' },
+        eyeColor: { type: 'string', description: '瞳の色（#RRGGBB）' },
+        skinColor: { type: 'string', description: '肌の色（#RRGGBB）。明るめの色にする' },
+        outfitColor: { type: 'string', description: '服の色（#RRGGBB）' },
+        collarColor: { type: 'string', description: 'セーラー襟の色（#RRGGBB）' },
+        accentColor: { type: 'string', description: 'リボンなど差し色（#RRGGBB）' },
+        catEars: { type: 'boolean', description: '猫耳カチューシャを付けるか' },
+        earColor: { type: 'string', description: '猫耳の外側の色（#RRGGBB）' },
+        hairRibbons: { type: 'boolean', description: '頭の左右のリボンを付けるか' },
+        hairpin: { type: 'boolean', description: '星の髪飾りを付けるか' },
+        ahoge: { type: 'boolean', description: 'アホ毛を付けるか' },
+        summary: { type: 'string', description: '変更内容をキャラクター本人の口調で一言（日本語、40字以内）' },
+    },
+};
+
+async function generateAppearance(request, apiKey) {
+    const { Anthropic, client } = await getClient(apiKey);
+    const current = normalizeAppearance(settings.appearance);
+    const params = baseParams(settings.model);
+    params.output_config = {
+        ...params.output_config,
+        format: { type: 'json_schema', schema: APPEARANCE_SCHEMA },
+    };
+    Object.assign(params, {
+        max_tokens: 16000,
+        system: [
+            'あなたはアニメ風VTuberキャラクターの見た目をデザインします。',
+            `キャラクター名は「${settings.charName}」です。`,
+            '現在の見た目（JSON）とユーザーの要望をもとに、変更後の見た目をすべての項目について出力してください。',
+            '要望で触れられていない項目は現在の値のまま残してください。',
+            '色は #RRGGBB 形式で、指定がなければ可愛らしく調和する色を選んでください。',
+            '絵で表現できるのは JSON の項目だけです。それ以外の要望（服の形や表情など）は近い項目で表現し、summary で軽く触れてください。',
+        ].join('\n'),
+        messages: [{
+            role: 'user',
+            content: `現在の見た目:\n${JSON.stringify(current)}\n\n要望:\n${request}`,
+        }],
+    });
+
+    let response;
+    try {
+        response = await client.beta.messages.create(params);
+    } catch (err) {
+        throw toUserFacingError(err, Anthropic);
+    }
+    if (response.stop_reason === 'refusal') {
+        throw new UserFacingError('その見た目には変更できませんでした。別の言い方で試してね。');
+    }
+    const text = response.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+    let parsed;
+    try {
+        parsed = JSON.parse(text);
+    } catch {
+        throw new UserFacingError('見た目の生成に失敗しました。もう一度試してね。');
+    }
+    const { summary, ...appearance } = parsed;
+    return { appearance: normalizeAppearance(appearance), summary: typeof summary === 'string' ? summary : '' };
+}
 
 // ===== デモモード（APIキー未設定時） =====
 const DEMO_RULES = [
@@ -632,6 +799,7 @@ const charNameInput = document.getElementById('charNameInput');
 const personaInput = document.getElementById('personaInput');
 
 document.getElementById('settingsBtn').addEventListener('click', () => {
+    setAppearanceStatus(APPEARANCE_STATUS_DEFAULT);
     apiKeyInput.value = settings.apiKey;
     modelSelect.value = settings.model;
     charNameInput.value = settings.charName;
@@ -647,6 +815,59 @@ dialog.addEventListener('close', () => {
     settings.persona = personaInput.value.trim() || DEFAULT_PERSONA;
     saveJSON(STORAGE_KEYS.settings, settings);
     renderHistory();
+});
+
+const appearancePrompt = document.getElementById('appearancePrompt');
+const appearanceApplyBtn = document.getElementById('appearanceApplyBtn');
+const appearanceResetBtn = document.getElementById('appearanceResetBtn');
+const appearanceStatus = document.getElementById('appearanceStatus');
+
+const APPEARANCE_STATUS_DEFAULT = appearanceStatus.textContent;
+
+function setAppearanceStatus(text, isError = false) {
+    appearanceStatus.textContent = text;
+    appearanceStatus.classList.toggle('error', isError);
+}
+
+appearanceApplyBtn.addEventListener('click', async () => {
+    const request = appearancePrompt.value.trim();
+    // 保存前に入力したキーでも試せるように、入力欄の値を優先する
+    const apiKey = apiKeyInput.value.trim() || settings.apiKey;
+    if (!request) {
+        setAppearanceStatus('どんな見た目にしたいか入力してね。', true);
+        return;
+    }
+    if (!apiKey) {
+        setAppearanceStatus('見た目の変更にはAPIキーが必要です。上の欄に入力してね。', true);
+        return;
+    }
+    appearanceApplyBtn.disabled = true;
+    appearanceResetBtn.disabled = true;
+    setAppearanceStatus('考え中…');
+    character.setEmotion('thinking');
+    try {
+        const { appearance, summary } = await generateAppearance(request, apiKey);
+        settings.appearance = appearance;
+        saveJSON(STORAGE_KEYS.settings, settings);
+        applyAppearance(appearance);
+        character.setEmotion('happy', { holdMs: 5000 });
+        setAppearanceStatus(`変更しました！${summary ? `「${summary}」` : ''}`);
+        appearancePrompt.value = '';
+    } catch (err) {
+        console.error(err);
+        character.setEmotion('sad', { holdMs: 4000 });
+        setAppearanceStatus(err instanceof UserFacingError ? err.message : `エラーが発生しました: ${err.message}`, true);
+    } finally {
+        appearanceApplyBtn.disabled = false;
+        appearanceResetBtn.disabled = false;
+    }
+});
+
+appearanceResetBtn.addEventListener('click', () => {
+    settings.appearance = null;
+    saveJSON(STORAGE_KEYS.settings, settings);
+    applyAppearance(null);
+    setAppearanceStatus('最初の見た目に戻しました。');
 });
 
 document.getElementById('clearHistoryBtn').addEventListener('click', () => {
@@ -685,6 +906,7 @@ document.getElementById('clearHistoryBtn').addEventListener('click', () => {
 })();
 
 // ===== 起動 =====
+applyAppearance(settings.appearance);
 renderHistory();
 if (!settings.apiKey) {
     addMessage('system', 'デモモードで動作中です。右上の ⚙ から Anthropic API キーを設定すると AI と会話できます。');

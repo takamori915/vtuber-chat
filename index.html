@@ -63,17 +63,19 @@
                 </defs>
 
                 <g id="body" class="body">
+                    <!-- ロングヘア（髪型が long のときだけ表示。胴体より後ろに描く） -->
+                    <path class="long-hair" fill="url(#hairGrad)" style="display:none" d="M112 200 C96 300 92 400 104 488 Q128 472 150 490 L250 490 Q272 472 296 488 C308 400 304 300 288 200 Z"/>
                     <!-- 胴体（セーラー服） -->
                     <path fill="url(#outfitGrad)" d="M120 520 C118 440 148 378 200 372 C252 378 282 440 280 520 Z"/>
-                    <path fill="#ffe6dc" d="M184 316 L216 316 L218 372 C207 381 193 381 182 372 Z"/>
-                    <path fill="#f3cbbd" d="M184 322 Q200 340 216 322 L216 338 Q200 350 184 338 Z"/>
-                    <path fill="#fdfbff" d="M150 380 L200 432 L250 380 L272 398 L200 470 L128 398 Z"/>
-                    <path fill="none" stroke="#ff8fb8" stroke-width="3" d="M138 400 L200 462 L262 400"/>
+                    <path class="skin" fill="#ffe6dc" d="M184 316 L216 316 L218 372 C207 381 193 381 182 372 Z"/>
+                    <path class="skin-shade" fill="#f3cbbd" d="M184 322 Q200 340 216 322 L216 338 Q200 350 184 338 Z"/>
+                    <path class="collar" fill="#fdfbff" d="M150 380 L200 432 L250 380 L272 398 L200 470 L128 398 Z"/>
+                    <path class="accent-stroke" fill="none" stroke="#ff8fb8" stroke-width="3" d="M138 400 L200 462 L262 400"/>
                     <!-- 胸元のリボン -->
                     <g transform="translate(200 430)">
-                        <path fill="#ff6fa5" d="M0 0 L-24 -12 Q-30 0 -24 12 Z M0 0 L24 -12 Q30 0 24 12 Z"/>
-                        <path fill="#ff6fa5" d="M-4 2 L-12 30 L-2 24 Z M4 2 L12 30 L2 24 Z"/>
-                        <circle r="6" fill="#ff8fb8"/>
+                        <path class="accent" fill="#ff6fa5" d="M0 0 L-24 -12 Q-30 0 -24 12 Z M0 0 L24 -12 Q30 0 24 12 Z"/>
+                        <path class="accent" fill="#ff6fa5" d="M-4 2 L-12 30 L-2 24 Z M4 2 L12 30 L2 24 Z"/>
+                        <circle class="accent-light" r="6" fill="#ff8fb8"/>
                     </g>
 
                     <!-- 頭（後ろ髪・ツインテールも一緒に動く） -->
@@ -81,15 +83,19 @@
                         <!-- 後ろ髪 -->
                         <path class="hair-back" fill="url(#hairGrad)" d="M110 205 C98 125 150 76 200 76 C250 76 302 125 290 205 C292 250 288 282 280 304 L266 288 L256 312 L240 294 Q200 306 160 294 L144 312 L134 288 L120 304 C112 282 108 250 110 205 Z"/>
                         <!-- ツインテール -->
-                        <path class="hair-back" fill="url(#hairGrad)" d="M114 150 C68 168 52 236 66 296 C78 348 52 400 74 470 C80 440 100 418 104 386 C110 340 92 300 104 256 C112 226 124 196 134 178 Z"/>
-                        <path class="hair-back" fill="url(#hairGrad)" d="M286 150 C332 168 348 236 334 296 C322 348 348 400 326 470 C320 440 300 418 296 386 C290 340 308 300 296 256 C288 226 276 196 266 178 Z"/>
-                        <path fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="3" stroke-linecap="round" d="M86 220 C76 270 84 320 76 380 M314 220 C324 270 316 320 324 380"/>
+                        <g class="twin-tails">
+                            <path class="hair-back" fill="url(#hairGrad)" d="M114 150 C68 168 52 236 66 296 C78 348 52 400 74 470 C80 440 100 418 104 386 C110 340 92 300 104 256 C112 226 124 196 134 178 Z"/>
+                            <path class="hair-back" fill="url(#hairGrad)" d="M286 150 C332 168 348 236 334 296 C322 348 348 400 326 470 C320 440 300 418 296 386 C290 340 308 300 296 256 C288 226 276 196 266 178 Z"/>
+                            <path fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="3" stroke-linecap="round" d="M86 220 C76 270 84 320 76 380 M314 220 C324 270 316 320 324 380"/>
+                        </g>
 
                         <!-- 猫耳カチューシャ -->
-                        <path fill="#fdf7ff" d="M128 118 L116 50 L178 88 Z"/>
-                        <path fill="#ffb7d3" d="M134 108 L126 66 L166 90 Z"/>
-                        <path fill="#fdf7ff" d="M272 118 L284 50 L222 88 Z"/>
-                        <path fill="#ffb7d3" d="M266 108 L274 66 L234 90 Z"/>
+                        <g class="cat-ears">
+                            <path class="ear-outer" fill="#fdf7ff" d="M128 118 L116 50 L178 88 Z"/>
+                            <path class="ear-inner" fill="#ffb7d3" d="M134 108 L126 66 L166 90 Z"/>
+                            <path class="ear-outer" fill="#fdf7ff" d="M272 118 L284 50 L222 88 Z"/>
+                            <path class="ear-inner" fill="#ffb7d3" d="M266 108 L274 66 L234 90 Z"/>
+                        </g>
 
                         <!-- 顔 -->
                         <path fill="url(#skinGrad)" d="M118 200 C118 132 154 98 200 98 C246 98 282 132 282 200 C282 262 258 306 224 324 Q200 336 176 324 C142 306 118 262 118 200 Z"/>
@@ -187,13 +193,15 @@
                         <!-- アホ毛 -->
                         <path class="ahoge" fill="url(#hairFront)" d="M198 78 C188 48 204 26 228 24 C211 34 206 54 210 78 Z"/>
                         <!-- 髪のリボン（ツインテールの結び目） -->
-                        <g transform="translate(118 158) rotate(-20)">
-                            <path fill="#ff6fa5" d="M0 0 L-18 -12 Q-24 0 -18 12 Z M0 0 L18 -12 Q24 0 18 12 Z"/>
-                            <circle r="5.5" fill="#ff9fc3"/>
-                        </g>
-                        <g transform="translate(282 158) rotate(20)">
-                            <path fill="#ff6fa5" d="M0 0 L-18 -12 Q-24 0 -18 12 Z M0 0 L18 -12 Q24 0 18 12 Z"/>
-                            <circle r="5.5" fill="#ff9fc3"/>
+                        <g class="hair-ribbons">
+                            <g transform="translate(118 158) rotate(-20)">
+                                <path class="accent" fill="#ff6fa5" d="M0 0 L-18 -12 Q-24 0 -18 12 Z M0 0 L18 -12 Q24 0 18 12 Z"/>
+                                <circle class="accent-light" r="5.5" fill="#ff9fc3"/>
+                            </g>
+                            <g transform="translate(282 158) rotate(20)">
+                                <path class="accent" fill="#ff6fa5" d="M0 0 L-18 -12 Q-24 0 -18 12 Z M0 0 L18 -12 Q24 0 18 12 Z"/>
+                                <circle class="accent-light" r="5.5" fill="#ff9fc3"/>
+                            </g>
                         </g>
                         <!-- 髪飾り -->
                         <g class="hairpin" transform="translate(252 142) rotate(15)">
@@ -281,6 +289,17 @@
             <label>キャラクター設定（性格・口調など）
                 <textarea id="personaInput" rows="4"></textarea>
             </label>
+            <fieldset class="appearance">
+                <legend>見た目</legend>
+                <label>どんな見た目にしたいか書いてください
+                    <textarea id="appearancePrompt" rows="2" placeholder="例：金髪のロングヘアにして、目は赤、猫耳はなしで"></textarea>
+                </label>
+                <div class="appearance-actions">
+                    <button type="button" id="appearanceResetBtn">元に戻す</button>
+                    <button type="button" id="appearanceApplyBtn" class="primary">見た目を変える</button>
+                </div>
+                <p class="note" id="appearanceStatus">AIが髪型・色・アクセサリーを決めて、すぐに反映します（APIキーが必要です。1回あたりの料金はメッセージ1通と同程度）。</p>
+            </fieldset>
             <div class="dialog-actions">
                 <button type="button" id="clearHistoryBtn" class="danger">会話をリセット</button>
                 <span class="spacer"></span>
