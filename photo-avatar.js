@@ -475,37 +475,46 @@ export function createPhotoRenderer(canvas) {
         return eye;
     }
 
-    // まばたき：肌の色で目を覆い、閉じたまつ毛の線を描く（lid が 0.5 を超えるとだんだん閉じる）
+    // まばたき：まぶた（肌の色）が上から下りてきて目を覆い、閉じたらまつ毛の線を描く。
+    // 透かして重ねると開いた目と閉じた目が二重に見えるので、上から覆う範囲を増やしていく
     function closeEye(side, lid) {
         const m = geo.eyes?.[side];
         if (!m) return;
-        const t = Math.max(0, Math.min(1, (lid - 0.5) / 0.4));
+        const t = Math.max(0, Math.min(1, (lid - 0.35) / 0.55));
         if (t <= 0) return;
         const k = t * t * (3 - 2 * t);
         const [r, gg, b] = m.skin;
         const top = `rgb(${r * 0.95},${gg * 0.93},${b * 0.93})`; // まぶたの上はほんの少し影
         const bottom = `rgb(${r},${gg},${b})`;
         g.save();
-        // 縁をぼかすため、少し大きい楕円から薄く重ねる
+        // 縁をぼかすため、少し大きい楕円から薄く重ねる。それぞれ「上から k の割合」だけ塗る
         for (const [scale, a] of [[1.3, 0.12], [1.2, 0.2], [1.1, 0.35], [1.0, 1]]) {
-            const grad = g.createLinearGradient(0, m.cy - m.ry * scale, 0, m.cy + m.ry * scale);
+            const y0 = m.cy - m.ry * scale;
+            const edge = y0 + m.ry * scale * 2 * k;
+            g.save();
+            g.beginPath();
+            g.rect(m.cx - m.rx * 2, y0 - 2, m.rx * 4, edge - y0 + 2);
+            g.clip();
+            const grad = g.createLinearGradient(0, y0, 0, m.cy + m.ry * scale);
             grad.addColorStop(0, top);
             grad.addColorStop(1, bottom);
-            g.globalAlpha = a * k;
+            g.globalAlpha = a;
             g.fillStyle = grad;
             g.beginPath();
             g.ellipse(m.cx, m.cy, m.rx * scale, m.ry * scale, 0, 0, Math.PI * 2);
             g.fill();
+            g.restore();
         }
-        // 閉じたまつ毛の線（下向きのゆるいカーブ）
-        g.globalAlpha = k;
+        // まぶたのふち（まつ毛の線）：下りてくるまぶたの縁に沿って描き、閉じきったら下向きのカーブ
+        const edgeY = Math.min(m.cy - m.ry + m.ry * 2 * k, m.cy + m.ry * 0.3);
+        g.globalAlpha = 0.25 + 0.75 * k;
         g.strokeStyle = 'rgba(58, 38, 32, 0.9)';
         g.lineWidth = Math.max(1.5, m.rx * 0.11);
         g.lineCap = 'round';
-        const ly = m.cy + m.ry * 0.3;
+        const w = m.rx * (0.6 + 0.35 * Math.sin(Math.PI * Math.min(1, k * 1.0) / 2 + 0.0)); // 端は楕円の幅に合わせる
         g.beginPath();
-        g.moveTo(m.cx - m.rx * 0.95, ly - m.ry * 0.05);
-        g.quadraticCurveTo(m.cx, ly + m.ry * 0.45, m.cx + m.rx * 0.95, ly - m.ry * 0.05);
+        g.moveTo(m.cx - w, edgeY - m.ry * 0.05);
+        g.quadraticCurveTo(m.cx, edgeY + m.ry * 0.45 * k, m.cx + w, edgeY - m.ry * 0.05);
         g.stroke();
         g.restore();
     }
@@ -597,7 +606,7 @@ export function createPhotoRenderer(canvas) {
         g.rotate(geo.theta);
         if (geo.hasEyes) {
             // まぶたのゆがみは細める程度まで。閉じるのは closeEye で目を覆って描く
-            const half = (e) => ({ ...e, lid: Math.min(e.lid, 0.45) });
+            const half = (e) => ({ ...e, lid: Math.min(e.lid, 0.3) });
             warpEye('L', half(expr.L));
             warpEye('R', half(expr.R));
             closeEye('L', expr.L.lid);

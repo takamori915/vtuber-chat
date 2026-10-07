@@ -1,4 +1,4 @@
-import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=23';
+import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=24';
 import { createBodyRig, danceAngles } from './body-rig.js?v=22';
 import { createDanceVideoPlayer, saveDanceVideo, loadDanceVideo, deleteDanceVideo } from './dance-video.js?v=14';
 
@@ -177,14 +177,15 @@ const character = (() => {
     // 写真キャラの表情：眉の内側(bi)・外側(bo)（+で下がる）、まぶた(lid)（+で閉じる、-で見開く）
     // L / R は画像の左右の目
     const sym = (bi, bo, lid) => ({ L: { bi, bo, lid }, R: { bi, bo, lid } });
+    // 写真は目を細めすぎると眠そうに見えるので、まぶたの動きは控えめに
     const PHOTO_EXPR = {
         neutral: sym(0, 0, 0),
-        happy: sym(-0.6, -0.5, 0.5),
-        sad: sym(-1.6, 0.6, 0.3),
-        angry: sym(2.0, -0.9, 0.3),
-        surprised: sym(-2.0, -1.7, -0.35),
-        thinking: { L: { bi: -1.5, bo: -1.3, lid: 0.05 }, R: { bi: 0.6, bo: 0.4, lid: 0.2 } },
-        shy: sym(-0.7, 0, 0.3),
+        happy: sym(-0.6, -0.5, 0.18),
+        sad: sym(-1.6, 0.6, 0.12),
+        angry: sym(2.0, -0.9, 0.2),
+        surprised: sym(-2.0, -1.7, -0.3),
+        thinking: { L: { bi: -1.5, bo: -1.3, lid: 0 }, R: { bi: 0.6, bo: 0.4, lid: 0.1 } },
+        shy: sym(-0.7, 0, 0.15),
     };
     const photoExpr = { mouth: 0, ...structuredClone(PHOTO_EXPR.neutral) };
     let resetTimer = null;
