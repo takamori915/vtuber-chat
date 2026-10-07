@@ -1,4 +1,5 @@
-import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=11';
+import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=12';
+import { createBodyRig, danceAngles } from './body-rig.js?v=12';
 
 // ===== 設定・定数 =====
 const STORAGE_KEYS = {
@@ -94,16 +95,21 @@ const character = (() => {
         setEmotion('happy', { holdMs: ms + 1000 });
     }
 
-    // 踊りの動き：120BPMで「左右ステップ → ジャンプとひねり → くるっと回転」を繰り返す
-    function danceTransform(now) {
-        if (danceEnd < 0) return '';
+    // 踊りの進み具合：拍 b と、始めと終わりをなめらかにする強さ env（踊っていなければ null）
+    function danceState(now) {
+        if (danceEnd < 0) return null;
         if (now > danceEnd + 500) {
             danceEnd = -1;
-            return '';
+            return null;
         }
         const el = (now - danceStart) / 1000;
-        const env = clamp(Math.min(el / 0.4, (danceEnd + 500 - now) / 500), 0, 1); // 始めと終わりはなめらかに
-        const b = el * 2; // 拍
+        return { b: el * 2, env: clamp(Math.min(el / 0.4, (danceEnd + 500 - now) / 500), 0, 1) }; // 120BPM
+    }
+
+    // 体全体の動き：「左右ステップ → ジャンプとひねり → くるっと回転」を繰り返す
+    function danceTransform(state) {
+        if (!state) return '';
+        const { b, env } = state;
         const bounce = Math.abs(Math.sin(b * Math.PI));
         const part = Math.floor(b / 8) % 3;
         let x = 0, y = 0, r = 0, sx = 1, sy = 1;
@@ -127,7 +133,10 @@ const character = (() => {
         sy = 1 + (sy - 1) * env;
         return `translate(${x * k}px, ${y * k}px) rotate(${r}deg) scale(${sx}, ${sy})`;
     }
-    const photoRenderer = createPhotoRenderer(document.getElementById('photoCanvas'));
+    const photoCanvas = document.getElementById('photoCanvas');
+    const photoGl = document.getElementById('photoGl');
+    const photoRenderer = createPhotoRenderer(photoCanvas);
+    const bodyRig = createBodyRig(photoGl);
 
     let emotion = 'neutral';
     let speaking = false;
@@ -272,7 +281,16 @@ const character = (() => {
             photoMove.style.transform = `translate(${tx * 4 * k}px, ${(ty * 2 + bob - lift) * k}px) rotate(${rot}deg)`;
         }
 
-        danceBox.style.transform = danceTransform(now);
+        const ds = danceState(now);
+        danceBox.style.transform = danceTransform(ds);
+
+        // 全身写真なら、踊っている間は手足も動かす
+        const limbs = Boolean(ds) && bodyRig.active && svg.classList.contains('photo-mode');
+        if (limbs) bodyRig.render(photoCanvas, danceAngles(ds.b, ds.env));
+        if (photoGl.hidden === limbs) {
+            photoGl.hidden = !limbs;
+            photoCanvas.style.visibility = limbs ? 'hidden' : '';
+        }
 
         requestAnimationFrame(frame);
     }
@@ -286,6 +304,7 @@ const character = (() => {
         dance,
         setVoiceLevel(v) { voiceLevel = v; },
         photo: photoRenderer,
+        body: bodyRig,
         lookAt,
         get emotion() { return emotion; },
     };
@@ -1347,6 +1366,7 @@ async function applyPhoto(data) {
     const layer = document.getElementById('photoLayer');
     try {
         await character.photo.load(data);
+        await character.body.load(data);
     } catch (err) {
         console.warn('写真を表示できませんでした', err);
         data = null;

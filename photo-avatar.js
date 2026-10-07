@@ -1,4 +1,5 @@
 // 写真キャラ：人物の切り抜きと口パク
+import { extractPose } from './body-rig.js?v=12';
 // MediaPipe（Google）の画像処理をブラウザ内で動かすので、写真は外部に送られない。
 // 必要なモデルは初回だけダウンロードされ、以降はブラウザのキャッシュから読み込まれる。
 
@@ -8,6 +9,8 @@ const MODELS = {
     face: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
     // 人物（髪・服も含む）を背景から分けるモデル
     segment: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite',
+    // 肩・ひじ・手首・腰・ひざ・足首の位置（手足を動かすのに使う）
+    pose: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
 };
 
 // 顔のランドマーク番号（MediaPipe Face Mesh）
@@ -35,7 +38,7 @@ function loadVision() {
         visionPromise = (async () => {
             const vision = await import(`${MP_BASE}/vision_bundle.mjs`);
             const fileset = await vision.FilesetResolver.forVisionTasks(`${MP_BASE}/wasm`);
-            const [face, segmenter] = await Promise.all([
+            const [face, segmenter, pose] = await Promise.all([
                 vision.FaceLandmarker.createFromOptions(fileset, {
                     baseOptions: { modelAssetPath: MODELS.face, delegate: 'CPU' },
                     runningMode: 'IMAGE',
@@ -47,8 +50,13 @@ function loadVision() {
                     outputConfidenceMasks: true,
                     outputCategoryMask: false,
                 }),
+                vision.PoseLandmarker.createFromOptions(fileset, {
+                    baseOptions: { modelAssetPath: MODELS.pose, delegate: 'CPU' },
+                    runningMode: 'IMAGE',
+                    numPoses: 1,
+                }),
             ]);
-            return { face, segmenter };
+            return { face, segmenter, pose };
         })().catch((err) => {
             visionPromise = null; // 次回やり直せるように
             throw err;
@@ -132,7 +140,7 @@ function keepComponent(alpha, w, h, seedX, seedY) {
 // 写真を処理して、表示用の画像と口の位置を返す
 // canvas: 切り抜き枠の大きさに整えた写真
 export async function processPhoto(canvas, { cutout = true } = {}) {
-    const { face, segmenter } = await loadVision();
+    const { face, segmenter, pose } = await loadVision();
     const w = canvas.width, h = canvas.height;
 
     const faces = face.detect(canvas).faceLandmarks || [];
@@ -159,7 +167,14 @@ export async function processPhoto(canvas, { cutout = true } = {}) {
         result.close?.();
     }
     if (!image) image = canvas.toDataURL('image/jpeg', 0.85);
-    return { image, cutout: isCutout, face: facePoints, headTop };
+
+    let posePoints = null;
+    try {
+        posePoints = extractPose(pose.detect(canvas).landmarks?.[0]);
+    } catch (err) {
+        console.warn('体の位置が分かりませんでした', err);
+    }
+    return { image, cutout: isCutout, face: facePoints, headTop, pose: posePoints };
 }
 
 // 顔の真上で、人物が始まる高さを探す

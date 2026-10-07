@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>AI VTuber Chat</title>
     <meta name="theme-color" content="#1b1530">
-    <link rel="stylesheet" href="style.css?v=11">
+    <link rel="stylesheet" href="style.css?v=12">
     <script type="importmap">
     {
         "imports": {
@@ -30,6 +30,8 @@
             <div class="photo-layer" id="photoLayer" hidden>
                 <div class="photo-move" id="photoMove">
                     <canvas id="photoCanvas" width="552" height="632"></canvas>
+                    <!-- 踊るときに手足を曲げて描く（全身写真のみ） -->
+                    <canvas id="photoGl" width="552" height="632" hidden></canvas>
                 </div>
             </div>
             <svg id="character" class="character emotion-neutral" viewBox="0 0 400 520" aria-label="キャラクター">
@@ -331,7 +333,7 @@
                         <button type="button" id="cropApplyBtn" class="primary">この写真を使う</button>
                     </div>
                 </div>
-                <p class="note" id="photoStatus">写真はこの端末のブラウザの中だけで処理・保存され、AIや外部には送られません（初回だけ、切り抜き用のデータ約35MBをダウンロードするので Wi-Fi がおすすめです）。</p>
+                <p class="note" id="photoStatus">写真はこの端末のブラウザの中だけで処理・保存され、AIや外部には送られません（初回だけ、切り抜き用のデータ約40MBをダウンロードするので Wi-Fi がおすすめです）。</p>
             </fieldset>
             <fieldset class="voice-settings" id="voiceSettings">
                 <legend>読み上げの声</legend>
@@ -378,6 +380,6 @@
         </form>
     </dialog>
 
-    <script type="module" src="app.js?v=11"></script>
+    <script type="module" src="app.js?v=12"></script>
 </body>
 </html>
