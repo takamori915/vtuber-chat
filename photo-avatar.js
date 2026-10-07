@@ -1,5 +1,5 @@
 // 写真キャラ：人物の切り抜きと口パク
-import { extractPose } from './body-rig.js?v=21';
+import { extractPose } from './body-rig.js?v=22';
 // MediaPipe（Google）の画像処理をブラウザ内で動かすので、写真は外部に送られない。
 // 必要なモデルは初回だけダウンロードされ、以降はブラウザのキャッシュから読み込まれる。
 
@@ -280,6 +280,39 @@ export function createPhotoRenderer(canvas) {
         return { theta, fc, pts, hasEyes, io };
     }
 
+    // 口の中心の縦の列で、赤みの強い行（唇）を探し、その重心の高さを返す
+    function findLipCenter() {
+        const p = geo.pts;
+        const cx = (p.mouthLeft.x + p.mouthRight.x) / 2;
+        const hw = Math.max(2, (p.mouthRight.x - p.mouthLeft.x) / 2);
+        const base = (p.upperLipInner.y + p.lowerLipInner.y) / 2;
+        const y0 = Math.round(base - hw * 0.6), y1 = Math.round(base + hw * 0.4);
+        const rows = [];
+        for (let y = y0; y <= y1; y++) {
+            let sum = 0, n = 0;
+            for (let x = Math.round(cx - hw * 0.4); x <= Math.round(cx + hw * 0.4); x++) {
+                const ix = Math.round(x + W / 2), iy = Math.round(y + H / 2);
+                if (ix < 0 || iy < 0 || ix >= W || iy >= H) continue;
+                const i = (iy * W + ix) * 4;
+                sum += src[i] - (src[i + 1] + src[i + 2]) / 2; // 赤み
+                n++;
+            }
+            rows.push([y, n ? sum / n : 0]);
+        }
+        // 周りの肌よりはっきり赤い行だけで重心をとる
+        const vals = rows.map((r) => r[1]).sort((a, b) => a - b);
+        const skin = vals[Math.floor(vals.length * 0.3)];
+        const peak = vals[vals.length - 1];
+        if (peak - skin < 8) return null; // 唇がはっきりしない
+        let sw = 0, sy = 0;
+        for (const [y, v] of rows) {
+            const w = Math.max(0, v - (skin + (peak - skin) * 0.45));
+            sw += w;
+            sy += w * y;
+        }
+        return sw ? sy / sw : null;
+    }
+
     function makeSource() {
         const c = newCanvas();
         const a = c.getContext('2d');
@@ -421,7 +454,8 @@ export function createPhotoRenderer(canvas) {
         const p = geo.pts;
         const L = p.mouthLeft, R = p.mouthRight;
         const cx = (L.x + R.x) / 2;
-        const lipY = (p.upperLipInner.y + p.lowerLipInner.y) / 2;
+        // 唇の色の帯の真ん中で開く（検出される「唇の合わせ目」は帯の下の端にずれていることがある）
+        const lipY = geo.lipSplit ?? (p.upperLipInner.y + p.lowerLipInner.y) / 2;
         const hw = Math.max(2, (R.x - L.x) / 2);
         const open = level * hw * 0.7;
         if (open < 0.3) return;
@@ -487,6 +521,7 @@ export function createPhotoRenderer(canvas) {
             if (data.face) {
                 geo = prepare(data.face);
                 src = makeSource();
+                geo.lipSplit = findLipCenter();
             }
             render({ mouth: 0, L: { bi: 0, bo: 0, lid: 0 }, R: { bi: 0, bo: 0, lid: 0 } });
         },

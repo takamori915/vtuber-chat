@@ -376,7 +376,7 @@ export function danceAngles(b, env) {
         a.thighR = 4 * Math.max(0, -s);
         a.shinL = -8 * Math.max(0, s);
         a.shinR = -8 * Math.max(0, -s);
-        a.torso = 3 * Math.sin((b * Math.PI) / 2);
+        a.torso = 0; // 体は傾けない（真上に跳ねる）
     } else if (part === 1) {
         // 両手を広げてフリフリ
         const w = Math.sin(b * Math.PI * 2);
@@ -386,14 +386,14 @@ export function danceAngles(b, env) {
         a.foreArmR = 10 - 10 * w;
         a.thighL = a.thighR = 4 * Math.abs(s);
         a.shinL = a.shinR = -8 * Math.abs(s);
-        a.torso = 4 * Math.sin(b * Math.PI);
+        a.torso = 0; // 体は傾けない（真上に跳ねる）
     } else {
         // ひじを曲げてリズムを取る（回転しながら）
         a.upperArmL = a.upperArmR = 30;
         a.foreArmL = a.foreArmR = 20 + 25 * Math.abs(s);
         a.thighL = a.thighR = 5 * Math.abs(s);
         a.shinL = a.shinR = -10 * Math.abs(s);
-        a.torso = 0;
+        a.torso = 0; // 体は傾けない（真上に跳ねる）
     }
     for (const k of Object.keys(a)) a[k] *= env;
     return a;

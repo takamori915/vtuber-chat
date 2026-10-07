@@ -1,5 +1,5 @@
-import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=21';
-import { createBodyRig, danceAngles } from './body-rig.js?v=21';
+import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=22';
+import { createBodyRig, danceAngles } from './body-rig.js?v=22';
 import { createDanceVideoPlayer, saveDanceVideo, loadDanceVideo, deleteDanceVideo } from './dance-video.js?v=14';
 
 // ===== 設定・定数 =====
@@ -145,18 +145,16 @@ const character = (() => {
         const bounce = Math.abs(Math.sin(b * Math.PI));
         const part = Math.floor(b / 8) % 3;
         let x = 0, y = 0, r = 0, sx = 1, sy = 1;
+        // 体を傾けたり横に動いたりせず、真上に跳ねるだけにする
         if (part === 0) {
-            x = Math.sin((b * Math.PI) / 2) * 24;
-            r = Math.sin((b * Math.PI) / 2) * 7;
             y = -bounce * 14;
         } else if (part === 1) {
             y = -bounce * 30;
-            r = Math.sin(b * Math.PI) * 10;
             const land = 1 - bounce; // 着地でちょっとつぶれる
             sx = 1 + land * 0.05;
             sy = 1 - land * 0.05;
         } else {
-            sx = Math.cos(((b % 8) / 8) * Math.PI * 2); // 横に回って見えるように
+            sx = Math.cos(((b % 8) / 8) * Math.PI * 2); // その場でくるっと回る
             y = -bounce * 12;
         }
         const k = wrap0.clientWidth / 400;
@@ -1605,7 +1603,7 @@ const presetCache = {};
 function loadPreset(frame, body, outfit) {
     const id = `${frame}-${body}-${outfit}`;
     if (!presetCache[id]) {
-        presetCache[id] = fetch(`characters/${id}.json?v=2`)
+        presetCache[id] = fetch(`characters/${id}.json?v=3`)
             .then((r) => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 return r.json();
