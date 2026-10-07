@@ -369,22 +369,39 @@ button { font: inherit; cursor: pointer; }
 
 /* ===== スマホ ===== */
 @media (max-width: 760px) {
-    .character-wrap {
-        height: 62dvh;
-        bottom: auto;
-        top: 40px;
+    /* キーボード表示中も画面上端に固定し、見えている範囲（--app-h）に収める */
+    .stage {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: var(--app-h, 100dvh);
+        --chat-h: calc(var(--app-h, 100dvh) * 0.46);
+        --char-top: 44px;
     }
     .bg-window, .bg-shelf { display: none; }
+    /* 顔（SVGの上から約2/3）がチャット欄の上に収まる大きさにする */
+    .character-wrap {
+        top: var(--char-top);
+        bottom: auto;
+        height: calc((var(--app-h, 100dvh) - var(--chat-h) - var(--char-top)) / 0.7);
+        transition: height 0.2s ease, top 0.2s ease;
+    }
     .chat {
         left: 0;
         right: 0;
         bottom: 0;
         top: auto;
         width: 100%;
-        height: 46dvh;
+        height: var(--chat-h);
         border-radius: 18px 18px 0 0;
         border-left: none;
         border-right: none;
         border-bottom: none;
+    }
+    /* キーボード表示中：ヘッダーを隠し、チャット欄を少し広げる */
+    .kb-open .topbar { display: none; }
+    .kb-open .stage {
+        --chat-h: calc(var(--app-h, 100dvh) * 0.55);
+        --char-top: 4px;
     }
 }

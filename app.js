@@ -658,6 +658,32 @@ document.getElementById('clearHistoryBtn').addEventListener('click', () => {
     character.setEmotion('neutral');
 });
 
+// ===== スマホのキーボード対策 =====
+// キーボード表示で見える範囲が狭くなっても、キャラの顔とチャット欄が両方収まるようにする
+(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const stage = document.getElementById('stage');
+    let fullHeight = vv.height;
+
+    function update() {
+        fullHeight = Math.max(fullHeight, vv.height);
+        document.documentElement.style.setProperty('--app-h', `${vv.height}px`);
+        document.body.classList.toggle('kb-open', vv.height < fullHeight * 0.75);
+        // iOS などでページ自体がずらされた場合も、見えている位置に合わせる
+        stage.style.transform = vv.offsetTop ? `translateY(${vv.offsetTop}px)` : '';
+        scrollToBottom();
+    }
+
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    window.addEventListener('orientationchange', () => {
+        fullHeight = 0;
+        setTimeout(update, 300);
+    });
+    update();
+})();
+
 // ===== 起動 =====
 renderHistory();
 if (!settings.apiKey) {
