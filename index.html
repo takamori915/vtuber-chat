@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>AI VTuber Chat</title>
     <meta name="theme-color" content="#1b1530">
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=6">
     <script type="importmap">
     {
         "imports": {
@@ -253,6 +253,7 @@
             <div class="live-badge"><span class="dot"></span>LIVE</div>
             <div class="title">AI VTuber Chat</div>
             <div class="top-actions">
+                <span id="ttsCredit" class="credit" hidden></span>
                 <button id="ttsBtn" class="icon-btn" title="読み上げ">🔇</button>
                 <button id="settingsBtn" class="icon-btn" title="設定">⚙</button>
             </div>
@@ -302,9 +303,29 @@
             </fieldset>
             <fieldset class="voice-settings" id="voiceSettings">
                 <legend>読み上げの声</legend>
-                <label>声の種類
-                    <select id="ttsVoiceSelect"></select>
+                <label>読み上げに使うもの
+                    <select id="ttsEngineSelect">
+                        <option value="browser">端末の声（設定不要）</option>
+                        <option value="voicevox">VOICEVOX（PCで起動が必要）</option>
+                    </select>
                 </label>
+                <div id="browserVoiceBlock">
+                    <label>声の種類
+                        <select id="ttsVoiceSelect"></select>
+                    </label>
+                </div>
+                <div id="voicevoxBlock" hidden>
+                    <label>VOICEVOX の URL
+                        <input type="url" id="voicevoxUrlInput" placeholder="http://127.0.0.1:50021" autocomplete="off">
+                    </label>
+                    <div class="appearance-actions">
+                        <button type="button" id="voicevoxConnectBtn">接続して声を読み込む</button>
+                    </div>
+                    <label>キャラクター
+                        <select id="voicevoxSpeakerSelect"></select>
+                    </label>
+                    <p class="note" id="voicevoxStatus"></p>
+                </div>
                 <label class="range">話す速さ <output id="ttsRateValue"></output>
                     <input type="range" id="ttsRateInput" min="0.7" max="1.5" step="0.05">
                 </label>
@@ -314,7 +335,7 @@
                 <div class="appearance-actions">
                     <button type="button" id="ttsPreviewBtn">▶ 試しに聞く</button>
                 </div>
-                <p class="note">使える声は端末やブラウザによって違います。高さを上げすぎると機械っぽくなるので、1.0〜1.2くらいがおすすめです。</p>
+                <p class="note" id="browserVoiceNote">使える声は端末やブラウザによって違います。高さを上げすぎると機械っぽくなるので、1.0〜1.2くらいがおすすめです。</p>
             </fieldset>
             <div class="dialog-actions">
                 <button type="button" id="clearHistoryBtn" class="danger">会話をリセット</button>
@@ -325,6 +346,6 @@
         </form>
     </dialog>
 
-    <script type="module" src="app.js?v=5"></script>
+    <script type="module" src="app.js?v=6"></script>
 </body>
 </html>
