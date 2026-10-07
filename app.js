@@ -1,5 +1,5 @@
-import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=14';
-import { createBodyRig, danceAngles } from './body-rig.js?v=14';
+import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=15';
+import { createBodyRig, danceAngles } from './body-rig.js?v=15';
 import { createDanceVideoPlayer, saveDanceVideo, loadDanceVideo, deleteDanceVideo } from './dance-video.js?v=14';
 
 // ===== 設定・定数 =====
@@ -21,6 +21,10 @@ const DEFAULT_SETTINGS = {
     charName: 'ルミ',
     persona: DEFAULT_PERSONA,
     tts: false,
+    // 表示するキャラ：'preset'（オリジナルキャラ）/ 'illust'（イラストのルミ）/ 'photo'（写真から作ったキャラ）
+    characterMode: 'preset',
+    presetBody: 'mini', // 'mini' | 'normal'
+    presetOutfit: 'casual', // 'casual' | 'future'
     ttsVoice: '', // voiceURI。空なら自動で選ぶ
     ttsRate: 1.05,
     ttsPitch: 1.1,
@@ -344,7 +348,7 @@ function clamp(v, min, max) {
 
 // ===== 感情タグのストリーミングパーサー =====
 // 応答中の [happy] のようなタグを取り除き、表情イベントに変換する
-const TAG_RE = /^\[(neutral|happy|sad|angry|surprised|thinking|shy|dance)\]/;
+const TAG_RE = /^\[(neutral|happy|sad|angry|surprised|thinking|shy|dance|outfit:casual|outfit:future|outfit:toggle)\]/;
 
 function createTagParser(onText, onEmotion) {
     let buf = '';
@@ -369,7 +373,7 @@ function createTagParser(onText, onEmotion) {
                     continue;
                 }
                 // タグの途中で区切れている可能性があるので続きを待つ
-                if (!buf.includes(']') && buf.length < 12) return;
+                if (!buf.includes(']') && buf.length < 20) return;
                 onText('[');
                 buf = buf.slice(1);
             }
@@ -411,6 +415,7 @@ function createTypewriter(bubble, { onDone } = {}) {
         const item = queue.shift();
         if (item.type === 'emotion') {
             if (item.name === 'dance') character.dance();
+            else if (item.name.startsWith('outfit:')) changeOutfit(item.name.slice(7));
             else character.setEmotion(item.name);
         } else {
             character.setSpeaking(true);
@@ -723,6 +728,13 @@ function buildSystemPrompt() {
         '## 踊る',
         '踊ってと頼まれたときや、嬉しくて踊りたくなったときは、返答に [dance] を入れると画面のキャラクターが踊ります（表情タグと一緒に使えます）。',
         '例: [happy][dance]いくよー！それっ、ワン・ツー♪',
+        ...(settings.characterMode === 'preset' ? [
+            '',
+            '## 着替え',
+            `今の服装は「${settings.presetOutfit === 'future' ? '未来風のスーツ' : '普段着（白いTシャツとジーンズ）'}」です。`,
+            '着替えてと頼まれたら、返答に [outfit:casual]（普段着：白いTシャツとジーンズ）か [outfit:future]（未来風のスーツ）を入れると、画面のキャラクターが着替えます。',
+            '例: [happy][outfit:future]じゃーん！未来スーツに着替えたよ！',
+        ] : []),
     ].join('\n');
 }
 
@@ -943,6 +955,11 @@ async function generateAppearance(request, apiKey) {
 
 // ===== デモモード（APIキー未設定時） =====
 const DEMO_RULES = [
+    // 着替え（オリジナルキャラのとき）
+    { re: /着替|きがえ|(未来|近未来|スーツ|普段着|いつも).{0,4}(服|着て|にして)/, replies: (t) =>
+        /未来|スーツ/.test(t) ? ['[happy][outfit:future]じゃーん！未来スーツに着替えたよ！']
+            : /普段|いつも|Tシャツ|ジーンズ/.test(t) ? ['[happy][outfit:casual]いつもの服に着替えたよ〜！']
+                : ['[happy][outfit:toggle]お着替えしたよ！どうかな？'] },
     { re: /踊|おど(って|る|ろ)|ダンス|dance/i, replies: [
         '[happy][dance]いくよー！それっ、ワン・ツー♪',
         '[happy][dance]踊るの大好き！見ててね〜♪',
@@ -979,7 +996,7 @@ const DEMO_FALLBACK = [
 
 async function streamDemo(userText, writer) {
     const rule = DEMO_RULES.find((r) => r.re.test(userText));
-    const pool = rule ? rule.replies : DEMO_FALLBACK;
+    const pool = rule ? (typeof rule.replies === 'function' ? rule.replies(userText) : rule.replies) : DEMO_FALLBACK;
     const reply = pool[Math.floor(Math.random() * pool.length)];
     await sleep(600);
     // ストリーミング風に少しずつ渡す
@@ -1287,6 +1304,7 @@ document.getElementById('settingsBtn').addEventListener('click', () => {
     setPhotoStatus(PHOTO_STATUS_DEFAULT);
     closeCrop();
     refreshDanceVideoUI();
+    updateCharacterUI();
     fillVoiceOptions(settings.ttsVoice);
     ttsEngineSelect.value = settings.ttsEngine;
     voicevoxUrlInput.value = settings.voicevoxUrl;
@@ -1555,7 +1573,12 @@ cropApplyBtn.addEventListener('click', async () => {
     } catch {
         saved = false;
     }
+    if (saved) {
+        settings.characterMode = 'photo';
+        saveJSON(STORAGE_KEYS.settings, settings);
+    }
     await applyPhoto(data);
+    updateCharacterUI();
     closeCrop();
     character.setEmotion('happy', { holdMs: 4000 });
     setPhotoStatus(
@@ -1567,9 +1590,89 @@ cropApplyBtn.addEventListener('click', async () => {
 
 photoClearBtn.addEventListener('click', () => {
     try { localStorage.removeItem(STORAGE_KEYS.photo); } catch { /* 無視 */ }
-    applyPhoto(null);
     closeCrop();
-    setPhotoStatus('イラストに戻しました。');
+    if (settings.characterMode === 'photo') setCharacterMode('preset');
+    updateCharacterUI();
+    setPhotoStatus('写真のキャラをやめました。');
+});
+
+// ===== 表示するキャラの切り替え =====
+// オリジナルキャラは、切り抜きと顔・体の位置をあらかじめ処理した画像（characters/）を読み込む
+const presetCache = {};
+function loadPreset(body, outfit) {
+    const id = `${body}-${outfit}`;
+    if (!presetCache[id]) {
+        presetCache[id] = fetch(`characters/${id}.json?v=1`)
+            .then((r) => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .catch((err) => {
+                delete presetCache[id];
+                throw err;
+            });
+    }
+    return presetCache[id];
+}
+
+async function applyCharacter() {
+    if (settings.characterMode === 'photo') {
+        const data = loadSavedPhoto();
+        if (data) return applyPhoto(data);
+        settings.characterMode = 'preset';
+    }
+    if (settings.characterMode === 'illust') return applyPhoto(null);
+    try {
+        await applyPhoto(await loadPreset(settings.presetBody, settings.presetOutfit));
+    } catch (err) {
+        console.warn('キャラクターを読み込めませんでした', err);
+        await applyPhoto(null);
+    }
+}
+
+function setCharacterMode(mode) {
+    settings.characterMode = mode;
+    saveJSON(STORAGE_KEYS.settings, settings);
+    applyCharacter();
+}
+
+// チャットの [outfit:...] で着替える（オリジナルキャラのときだけ）
+function changeOutfit(outfit) {
+    if (settings.characterMode !== 'preset') return;
+    const next = outfit === 'toggle' ? (settings.presetOutfit === 'future' ? 'casual' : 'future') : outfit;
+    if (!['casual', 'future'].includes(next) || next === settings.presetOutfit) return;
+    settings.presetOutfit = next;
+    saveJSON(STORAGE_KEYS.settings, settings);
+    applyCharacter();
+    updateCharacterUI();
+}
+
+const charModeSelect = document.getElementById('charModeSelect');
+const presetOptions = document.getElementById('presetOptions');
+
+function updateCharacterUI() {
+    const hasPhoto = Boolean(loadSavedPhoto());
+    charModeSelect.querySelector('option[value="photo"]').disabled = !hasPhoto;
+    charModeSelect.value = settings.characterMode;
+    presetOptions.hidden = settings.characterMode !== 'preset';
+    document.querySelectorAll('#presetOptions .seg').forEach((seg) => {
+        seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === settings[seg.dataset.key]));
+    });
+}
+
+charModeSelect.addEventListener('change', () => {
+    setCharacterMode(charModeSelect.value);
+    updateCharacterUI();
+});
+document.querySelectorAll('#presetOptions .seg').forEach((seg) => {
+    seg.addEventListener('click', (e) => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        settings[seg.dataset.key] = b.dataset.v;
+        saveJSON(STORAGE_KEYS.settings, settings);
+        applyCharacter();
+        updateCharacterUI();
+    });
 });
 
 // ===== 踊るときの動画 =====
@@ -1670,7 +1773,7 @@ document.getElementById('clearHistoryBtn').addEventListener('click', () => {
 
 // ===== 起動 =====
 applyAppearance(settings.appearance);
-applyPhoto(loadSavedPhoto());
+applyCharacter();
 loadDanceVideo().then((r) => r && character.danceVideo.setRecord(r)).catch((err) => console.warn('踊りの動画を読み込めませんでした', err));
 renderHistory();
 if (!settings.apiKey) {

@@ -1,5 +1,5 @@
 // 写真キャラ：人物の切り抜きと口パク
-import { extractPose } from './body-rig.js?v=14';
+import { extractPose } from './body-rig.js?v=15';
 // MediaPipe（Google）の画像処理をブラウザ内で動かすので、写真は外部に送られない。
 // 必要なモデルは初回だけダウンロードされ、以降はブラウザのキャッシュから読み込まれる。
 
@@ -383,8 +383,11 @@ export function createPhotoRenderer(canvas) {
         const outer = p[`eye${side}Outer`], inner = p[`eye${side}Inner`];
         const bIn = p[`brow${side}Inner`], bOut = p[`brow${side}Outer`];
         const browY = (p[`brow${side}Mid`].y + p[`brow${side}MidLow`].y) / 2;
-        const eyeTop = p[`eye${side}Top`].y, eyeBot = p[`eye${side}Bottom`].y;
-        const eyeH = Math.max(2, eyeBot - eyeTop);
+        // 検出される目の輪郭は、大きく描かれた目（アニメ調やフィギュア）より少し小さいので、上下に少し広げる
+        const rawTop = p[`eye${side}Top`].y, rawBot = p[`eye${side}Bottom`].y;
+        const rawH = Math.max(2, rawBot - rawTop);
+        const eyeTop = rawTop - rawH * 0.25, eyeBot = rawBot + rawH * 0.12;
+        const eyeH = eyeBot - eyeTop;
         const gap = Math.max(4, eyeTop - browY);
         const unit = geo.io * 0.075; // 眉を動かす量の単位
         if (Math.max(Math.abs(e.bi), Math.abs(e.bo)) * unit < 0.3 && Math.abs(e.lid) * eyeH < 0.3) return;

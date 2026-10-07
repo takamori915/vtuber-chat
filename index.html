@@ -335,8 +335,29 @@
             <label>キャラクター設定（性格・口調など）
                 <textarea id="personaInput" rows="4"></textarea>
             </label>
+            <fieldset class="photo-settings">
+                <legend>キャラクター</legend>
+                <label>表示するキャラ
+                    <select id="charModeSelect">
+                        <option value="preset">オリジナルキャラ</option>
+                        <option value="illust">イラスト（ルミ）</option>
+                        <option value="photo">写真から作ったキャラ</option>
+                    </select>
+                </label>
+                <div id="presetOptions">
+                    <div class="seg" data-key="presetBody">
+                        <button type="button" data-v="mini">ミニキャラ</button>
+                        <button type="button" data-v="normal">通常</button>
+                    </div>
+                    <div class="seg" data-key="presetOutfit">
+                        <button type="button" data-v="casual">普段着</button>
+                        <button type="button" data-v="future">未来スーツ</button>
+                    </div>
+                    <p class="note">チャットで「着替えて」「未来の服にして」と頼んでも着替えます。</p>
+                </div>
+            </fieldset>
             <fieldset class="appearance">
-                <legend>見た目</legend>
+                <legend>見た目（イラストのとき）</legend>
                 <label>どんな見た目にしたいか書いてください
                     <textarea id="appearancePrompt" rows="2" placeholder="例：金髪のロングヘアにして、目は赤、猫耳はなしで"></textarea>
                 </label>
@@ -352,7 +373,7 @@
                     <label class="file-btn">📷 写真を選ぶ
                         <input type="file" id="photoInput" accept="image/*" hidden>
                     </label>
-                    <button type="button" id="photoClearBtn">イラストに戻す</button>
+                    <button type="button" id="photoClearBtn">写真をやめる</button>
                 </div>
                 <div class="crop" id="cropArea" hidden>
                     <canvas id="cropCanvas" width="552" height="632"></canvas>
@@ -425,6 +446,6 @@
         </form>
     </dialog>
 
-    <script type="module" src="app.js?v=19"></script>
+    <script type="module" src="app.js?v=22"></script>
 </body>
 </html>

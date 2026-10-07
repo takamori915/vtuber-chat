@@ -447,6 +447,10 @@ button { font: inherit; cursor: pointer; }
     font-weight: 700;
     cursor: pointer;
 }
+.settings .seg { display: flex; gap: 0; margin: 0 0 10px; border: 1px solid var(--panel-border); border-radius: 10px; overflow: hidden; }
+.settings .seg button { flex: 1; padding: 8px 6px; border: none; background: transparent; color: var(--text); font-size: 13px; }
+.settings .seg button + button { border-left: 1px solid var(--panel-border); }
+.settings .seg button.on { background: var(--accent); color: #fff; font-weight: 700; }
 .settings label.check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 13px; }
 .settings label.check input { width: auto; margin: 0; }
 .crop canvas {
