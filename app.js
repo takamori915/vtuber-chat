@@ -1,4 +1,4 @@
-import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=8';
+import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=9';
 
 // ===== 設定・定数 =====
 const STORAGE_KEYS = {
@@ -89,6 +89,20 @@ const character = (() => {
     let mouthLevel = 0;
     let voiceLevel = null; // 音声の音量（0〜1）。null のときは擬似的な口パク
     let talkLevel = 0; // 写真モードで弾ませる量
+
+    // 写真キャラの表情：眉の内側(bi)・外側(bo)（+で下がる）、まぶた(lid)（+で閉じる、-で見開く）
+    // L / R は画像の左右の目
+    const sym = (bi, bo, lid) => ({ L: { bi, bo, lid }, R: { bi, bo, lid } });
+    const PHOTO_EXPR = {
+        neutral: sym(0, 0, 0),
+        happy: sym(-0.6, -0.5, 0.5),
+        sad: sym(-1.6, 0.6, 0.3),
+        angry: sym(2.0, -0.9, 0.3),
+        surprised: sym(-2.0, -1.7, -0.35),
+        thinking: { L: { bi: -1.5, bo: -1.3, lid: 0.05 }, R: { bi: 0.6, bo: 0.4, lid: 0.2 } },
+        shy: sym(-0.7, 0, 0.3),
+    };
+    const photoExpr = { mouth: 0, ...structuredClone(PHOTO_EXPR.neutral) };
     let resetTimer = null;
     const pointer = { x: 0, y: 0 }; // -1〜1 に正規化した視線ターゲット
     let lookAtChat = false;
@@ -192,8 +206,18 @@ const character = (() => {
         if (svg.classList.contains('photo-mode')) {
             const k = wrap0.clientWidth / 400; // SVG座標 → 画面のピクセル
             let lift = 0;
-            if (photoRenderer.hasMouth) {
-                photoRenderer.update(mouthLevel);
+            if (photoRenderer.hasFace) {
+                // 表情とまばたきに向けて少しずつ近づける（まばたきは速く）
+                const target = PHOTO_EXPR[emotion] || PHOTO_EXPR.neutral;
+                const blinking = svg.classList.contains('blink');
+                for (const side of ['L', 'R']) {
+                    const cur = photoExpr[side], tgt = target[side];
+                    cur.bi += (tgt.bi - cur.bi) * 0.2;
+                    cur.bo += (tgt.bo - cur.bo) * 0.2;
+                    cur.lid += ((blinking ? 1 : tgt.lid) - cur.lid) * (blinking ? 0.7 : 0.25);
+                }
+                photoExpr.mouth = mouthLevel;
+                photoRenderer.update(photoExpr);
             } else {
                 // 口の位置が分からない写真は、話している間弾ませる
                 talkLevel += ((voiceLevel !== null || speaking ? mouthLevel : 0) - talkLevel) * 0.5;

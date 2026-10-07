@@ -20,6 +20,12 @@ const LM = {
     nose: 1,
     faceLeft: 234,
     faceRight: 454,
+    // 目（画像の左右）：外側・内側の端と、上まぶた・下まぶたの中央
+    eyeLOuter: 33, eyeLInner: 133, eyeLTop: 159, eyeLBottom: 145,
+    eyeROuter: 263, eyeRInner: 362, eyeRTop: 386, eyeRBottom: 374,
+    // 眉（画像の左右）：内側・外側の端と、中央の上下
+    browLInner: 55, browLOuter: 46, browLMid: 105, browLMidLow: 52,
+    browRInner: 285, browROuter: 276, browRMid: 334, browRMidLow: 282,
 };
 
 let visionPromise = null;
@@ -195,53 +201,59 @@ function clamp01(v) {
 }
 
 // ===== 表示（毎フレームの描画） =====
-// 保存しておいた写真から下地を作り、口の開き具合に合わせて描き直す
+// 保存しておいた写真から下地を作り、表情（眉・まぶた・口）に合わせて描き直す。
+// 顔が傾いていても自然に動くよう、目（または口）の傾きに合わせて回転した座標で変形する。
+//
+// 変形は「縦の細い帯ごとに、上下方向だけ伸び縮みさせる」方法で行う：
+// 帯ごとに [元の高さ → 描く高さ] の対応点を決め、区間ごとに drawImage で引き伸ばす。
+// 中央ほど大きく、端に向かってなめらかに 0 に戻すので、継ぎ目が出ない。
 export function createPhotoRenderer(canvas) {
     const g = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
     let base = null; // 縁取りなどを付けた下地
-    let face = null;
-    let lastLevel = -1;
+    let aligned = null; // 顔の傾きを打ち消すように回転した下地
+    let geo = null; // 顔の傾きと、回転後の座標での各点
+    let lastKey = '';
 
     function makeBase(img, cutout) {
-        const w = canvas.width, h = canvas.height;
         const c = document.createElement('canvas');
-        c.width = w;
-        c.height = h;
+        c.width = W;
+        c.height = H;
         const b = c.getContext('2d');
         if (cutout) {
             // シール風の白い縁取り
             const r = 7;
             const ring = document.createElement('canvas');
-            ring.width = w;
-            ring.height = h;
+            ring.width = W;
+            ring.height = H;
             const rg = ring.getContext('2d');
             for (let a = 0; a < 16; a++) {
                 const t = (a / 16) * Math.PI * 2;
-                rg.drawImage(img, Math.cos(t) * r, Math.sin(t) * r, w, h);
+                rg.drawImage(img, Math.cos(t) * r, Math.sin(t) * r, W, H);
             }
             rg.globalCompositeOperation = 'source-in';
             rg.fillStyle = '#ffffff';
-            rg.fillRect(0, 0, w, h);
+            rg.fillRect(0, 0, W, H);
             b.shadowColor = 'rgba(0,0,0,0.35)';
             b.shadowBlur = 18;
             b.shadowOffsetY = 6;
             b.drawImage(ring, 0, 0);
             b.shadowColor = 'transparent';
-            b.drawImage(img, 0, 0, w, h);
+            b.drawImage(img, 0, 0, W, H);
         } else {
             // 角丸の枠に入れる
             const m = 8, rad = 64;
             b.fillStyle = '#ffffff';
-            roundRect(b, 0, 0, w, h, rad + m);
+            roundRect(b, 0, 0, W, H, rad + m);
             b.fill();
             b.save();
-            roundRect(b, m, m, w - m * 2, h - m * 2, rad);
+            roundRect(b, m, m, W - m * 2, H - m * 2, rad);
             b.clip();
-            b.drawImage(img, 0, 0, w, h);
+            b.drawImage(img, 0, 0, W, H);
             b.restore();
             b.strokeStyle = '#ff8fb8';
             b.lineWidth = 5;
-            roundRect(b, 2.5, 2.5, w - 5, h - 5, rad + m);
+            roundRect(b, 2.5, 2.5, W - 5, H - 5, rad + m);
             b.stroke();
         }
         return c;
@@ -257,25 +269,106 @@ export function createPhotoRenderer(canvas) {
         ctx.closePath();
     }
 
-    function render(level) {
-        if (!base) return;
-        const w = canvas.width, h = canvas.height;
-        g.clearRect(0, 0, w, h);
-        g.drawImage(base, 0, 0);
-        if (!face || level < 0.02) return;
+    // 顔の傾きを求め、各点を「鼻を原点・目が水平」の座標に直す
+    function prepare(face) {
+        const P = (k) => (face[k] ? { x: face[k].x * W, y: face[k].y * H } : null);
+        const hasEyes = Boolean(face.eyeLOuter && face.browLInner);
+        const A = hasEyes ? P('eyeLOuter') : P('mouthLeft');
+        const B = hasEyes ? P('eyeROuter') : P('mouthRight');
+        const theta = Math.atan2(B.y - A.y, B.x - A.x);
+        const fc = P('nose');
+        const c = Math.cos(-theta), sn = Math.sin(-theta);
+        const pts = {};
+        for (const k of Object.keys(face)) {
+            const p = P(k);
+            const dx = p.x - fc.x, dy = p.y - fc.y;
+            pts[k] = { x: dx * c - dy * sn, y: dx * sn + dy * c };
+        }
+        const io = hasEyes ? Math.abs(pts.eyeROuter.x - pts.eyeLOuter.x) : Math.abs(pts.mouthRight.x - pts.mouthLeft.x) * 2;
+        return { theta, fc, pts, hasEyes, io };
+    }
 
-        // 口の位置（ピクセル）
-        const L = { x: face.mouthLeft.x * w, y: face.mouthLeft.y * h };
-        const R = { x: face.mouthRight.x * w, y: face.mouthRight.y * h };
+    function makeAligned() {
+        const c = document.createElement('canvas');
+        c.width = W;
+        c.height = H;
+        const a = c.getContext('2d');
+        a.translate(W / 2, H / 2);
+        a.rotate(-geo.theta);
+        a.translate(-geo.fc.x, -geo.fc.y);
+        a.drawImage(base, 0, 0);
+        return c;
+    }
+
+    // 帯ごとの縦方向の伸び縮み。knotsAt(x) は [元のy, 描くy] の並び（上から順）
+    function columnWarp(x0, x1, knotsAt, step = 2) {
+        for (let x = Math.floor(x0); x < x1; x += step) {
+            const k = knotsAt(x + step / 2);
+            if (!k || k.every(([sy, dy]) => Math.abs(dy - sy) < 0.3)) continue;
+            for (let i = 0; i < k.length - 1; i++) {
+                const [sy0, dy0] = k[i];
+                const [sy1, dy1] = k[i + 1];
+                if (sy1 - sy0 < 0.5 || dy1 - dy0 < 0.5) continue;
+                g.drawImage(aligned, x + W / 2, sy0 + H / 2, step, sy1 - sy0, x, dy0, step, dy1 - dy0);
+            }
+        }
+    }
+
+    // 中央が 1、端に向かってなめらかに 0 になる重み（|v| < flat の間は 1）
+    function taper(v, flat = 0) {
+        const a = Math.abs(v);
+        if (a <= flat) return 1;
+        if (a >= 1) return 0;
+        return 0.5 * (1 + Math.cos(Math.PI * (a - flat) / (1 - flat)));
+    }
+
+    // 片目ぶん：眉の上下（内側・外側）と、上まぶたの上下
+    // e: { bi: 眉の内側, bo: 眉の外側（+で下がる）, lid: まぶた（+で閉じる、-で見開く） }
+    function warpEye(side, e) {
+        const p = geo.pts;
+        const outer = p[`eye${side}Outer`], inner = p[`eye${side}Inner`];
+        const top = p[`eye${side}Top`], bottom = p[`eye${side}Bottom`];
+        const bIn = p[`brow${side}Inner`], bOut = p[`brow${side}Outer`];
+        const browY = (p[`brow${side}Mid`].y + p[`brow${side}MidLow`].y) / 2;
+        const eyeTop = top.y, eyeBot = bottom.y;
+        const eyeH = Math.max(2, eyeBot - eyeTop);
+        const gap = Math.max(4, eyeTop - browY);
+        const regionTop = browY - gap * 1.1;
+        const regionBottom = eyeBot + geo.io * 0.1;
+        const unit = geo.io * 0.075; // 眉を動かす量の単位
+        const xs = [outer.x, inner.x, bIn.x, bOut.x];
+        const xMin = Math.min(...xs) - geo.io * 0.06;
+        const xMax = Math.max(...xs) + geo.io * 0.06;
+        const xMid = (xMin + xMax) / 2, half = (xMax - xMin) / 2;
+        const eyeCx = (outer.x + inner.x) / 2, eyeHalf = Math.abs(outer.x - inner.x) / 2;
+
+        columnWarp(xMin, xMax, (x) => {
+            const t = clamp01((x - bIn.x) / (bOut.x - bIn.x)); // 眉の内側0〜外側1
+            // 眉が目に近い顔でも、まぶたまで押し下げないよう下げ幅を眉と目の間隔で抑える
+            const bs = Math.max(-gap, Math.min(gap * 0.4, (e.bi * (1 - t) + e.bo * t) * unit)) * taper((x - xMid) / half, 0.55);
+            let ls = e.lid * eyeH * taper((x - eyeCx) / (eyeHalf * 1.3), 0.25);
+            // 並び順が入れ替わらないように制限する
+            let dBrow = browY + bs;
+            let dTop = eyeTop + ls;
+            dTop = Math.min(dTop, eyeBot - 0.6);
+            dBrow = Math.min(dBrow, dTop - 2);
+            dBrow = Math.max(dBrow, regionTop + 2);
+            dTop = Math.max(dTop, dBrow + 2);
+            return [[regionTop, regionTop], [browY, dBrow], [eyeTop, dTop], [eyeBot, eyeBot], [regionBottom, regionBottom]];
+        }, 2);
+    }
+
+    // 口：下唇から下を下げて、そのすき間に口の中を描く
+    function drawMouth(level) {
+        const p = geo.pts;
+        const L = p.mouthLeft, R = p.mouthRight;
         const cx = (L.x + R.x) / 2;
-        const lipY = ((face.upperLipInner.y + face.lowerLipInner.y) / 2) * h;
-        const chinY = face.chin.y * h;
-        const mouthW = Math.hypot(R.x - L.x, R.y - L.y);
-        const open = level * mouthW * 0.42;
-        const bottom = Math.min(h, chinY + (chinY - lipY) * 0.7);
-        const span = mouthW * 1.15; // 下あごを動かす左右の範囲
+        const lipY = (p.upperLipInner.y + p.lowerLipInner.y) / 2;
+        const mouthW = Math.max(4, R.x - L.x);
+        const open = level * mouthW * 0.32;
+        const bottom = p.chin.y + (p.chin.y - lipY) * 0.6;
+        const span = mouthW * 1.1;
 
-        // 口の中：上唇のラインと、下がった下唇のラインで囲んだ形にする
         g.save();
         g.beginPath();
         g.moveTo(L.x, L.y);
@@ -298,39 +391,59 @@ export function createPhotoRenderer(canvas) {
         g.fill();
         g.restore();
 
-        // 下唇から下を、中央ほど大きく下にずらす（端は動かさないので裂け目が出ない）
-        const step = 2;
-        for (let x = Math.floor(cx - span); x < cx + span; x += step) {
-            const t = (x - cx) / span;
-            const s = open * 0.5 * (1 + Math.cos(Math.PI * t));
-            if (s < 0.3) continue;
-            g.drawImage(base, x, lipY, step, bottom - lipY, x, lipY + s, step, bottom - lipY - s);
+        columnWarp(cx - span, cx + span, (x) => {
+            const s = open * taper((x - cx) / span);
+            return [[lipY, lipY + s], [bottom, bottom]];
+        }, 2);
+    }
+
+    // expr: { mouth: 0〜1, L: {bi, bo, lid}, R: {bi, bo, lid} }
+    function render(expr) {
+        if (!base) return;
+        g.clearRect(0, 0, W, H);
+        g.drawImage(base, 0, 0);
+        if (!geo) return;
+        g.save();
+        g.translate(geo.fc.x, geo.fc.y);
+        g.rotate(geo.theta);
+        if (geo.hasEyes) {
+            warpEye('L', expr.L);
+            warpEye('R', expr.R);
         }
+        if (expr.mouth > 0.02) drawMouth(expr.mouth);
+        g.restore();
     }
 
     return {
         async load(data) {
             base = null;
-            face = null;
-            lastLevel = -1;
+            aligned = null;
+            geo = null;
+            lastKey = '';
             if (!data) {
-                g.clearRect(0, 0, canvas.width, canvas.height);
+                g.clearRect(0, 0, W, H);
                 return;
             }
             const img = new Image();
             img.src = data.image;
             await img.decode();
             base = makeBase(img, data.cutout);
-            face = data.face || null;
-            render(0);
+            if (data.face) {
+                geo = prepare(data.face);
+                aligned = makeAligned();
+            }
+            render({ mouth: 0, L: { bi: 0, bo: 0, lid: 0 }, R: { bi: 0, bo: 0, lid: 0 } });
         },
-        get hasMouth() { return Boolean(face); },
-        // 口の開き具合（0〜1）を受け取り、変わったときだけ描き直す
-        update(level) {
-            const q = Math.round(level * 40) / 40;
-            if (q === lastLevel) return;
-            lastLevel = q;
-            render(q);
+        get hasFace() { return Boolean(geo); },
+        // 目・眉が動かせるか（以前に保存した写真には目の位置が入っていない）
+        get hasEyes() { return Boolean(geo?.hasEyes); },
+        // 値が変わったときだけ描き直す
+        update(expr) {
+            const q = (v) => Math.round(v * 30);
+            const key = [expr.mouth, expr.L.bi, expr.L.bo, expr.L.lid, expr.R.bi, expr.R.bo, expr.R.lid].map(q).join(',');
+            if (key === lastKey) return;
+            lastKey = key;
+            render(expr);
         },
     };
 }
