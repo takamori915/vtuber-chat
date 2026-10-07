@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>AI VTuber Chat</title>
     <meta name="theme-color" content="#1b1530">
-    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="style.css?v=7">
     <script type="importmap">
     {
         "imports": {
@@ -57,6 +57,9 @@
                         <stop offset="0" stop-color="#34305e"/>
                         <stop offset="1" stop-color="#211e3f"/>
                     </linearGradient>
+                    <clipPath id="photoClip">
+                        <rect x="62" y="64" width="276" height="316" rx="44"/>
+                    </clipPath>
                     <clipPath id="eyeClip">
                         <ellipse rx="23" ry="28"/>
                     </clipPath>
@@ -95,6 +98,13 @@
                             <path class="ear-inner" fill="#ffb7d3" d="M134 108 L126 66 L166 90 Z"/>
                             <path class="ear-outer" fill="#fdf7ff" d="M272 118 L284 50 L222 88 Z"/>
                             <path class="ear-inner" fill="#ffb7d3" d="M266 108 L274 66 L234 90 Z"/>
+                        </g>
+
+                        <!-- 写真モード：読み込んだ写真をキャラとして表示する -->
+                        <g class="photo-avatar">
+                            <rect x="56" y="58" width="288" height="328" rx="50" fill="#fff" opacity=".9"/>
+                            <image id="photoImage" x="62" y="64" width="276" height="316" preserveAspectRatio="xMidYMid slice" clip-path="url(#photoClip)"/>
+                            <rect x="56" y="58" width="288" height="328" rx="50" fill="none" stroke="#ff8fb8" stroke-width="3" opacity=".8"/>
                         </g>
 
                         <!-- 顔 -->
@@ -301,6 +311,27 @@
                 </div>
                 <p class="note" id="appearanceStatus">AIが髪型・色・アクセサリーを決めて、すぐに反映します（APIキーが必要です。1回あたりの料金はメッセージ1通と同程度）。</p>
             </fieldset>
+            <fieldset class="photo-settings">
+                <legend>写真をキャラにする</legend>
+                <div class="appearance-actions photo-pick">
+                    <label class="file-btn">📷 写真を選ぶ
+                        <input type="file" id="photoInput" accept="image/*" hidden>
+                    </label>
+                    <button type="button" id="photoClearBtn">イラストに戻す</button>
+                </div>
+                <div class="crop" id="cropArea" hidden>
+                    <canvas id="cropCanvas" width="552" height="632"></canvas>
+                    <label class="range">拡大
+                        <input type="range" id="cropZoom" min="1" max="4" step="0.01" value="1">
+                    </label>
+                    <p class="note">写真をドラッグして、顔が枠の中に入るように調整してください。</p>
+                    <div class="appearance-actions">
+                        <button type="button" id="cropCancelBtn">やめる</button>
+                        <button type="button" id="cropApplyBtn" class="primary">この写真を使う</button>
+                    </div>
+                </div>
+                <p class="note" id="photoStatus">写真はこの端末のブラウザの中だけに保存され、AIや外部には送られません。</p>
+            </fieldset>
             <fieldset class="voice-settings" id="voiceSettings">
                 <legend>読み上げの声</legend>
                 <label>読み上げに使うもの
@@ -346,6 +377,6 @@
         </form>
     </dialog>
 
-    <script type="module" src="app.js?v=6"></script>
+    <script type="module" src="app.js?v=7"></script>
 </body>
 </html>

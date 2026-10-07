@@ -2,6 +2,7 @@
 const STORAGE_KEYS = {
     settings: 'vtuberChat.settings',
     history: 'vtuberChat.history',
+    photo: 'vtuberChat.photo', // 写真モードの画像（data URL）。大きいので設定とは別に保存
 };
 
 const EMOTIONS = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'thinking', 'shy'];
@@ -77,11 +78,13 @@ const character = (() => {
     const head = document.getElementById('head');
     const pupils = svg.querySelectorAll('.pupil');
     const mouthOpen = svg.querySelector('.mouth-open');
+    const photo = svg.querySelector('.photo-avatar');
 
     let emotion = 'neutral';
     let speaking = false;
     let mouthLevel = 0;
     let voiceLevel = null; // 音声の音量（0〜1）。null のときは擬似的な口パク
+    let talkLevel = 0; // 写真モードで弾ませる量
     let resetTimer = null;
     const pointer = { x: 0, y: 0 }; // -1〜1 に正規化した視線ターゲット
     let lookAtChat = false;
@@ -180,6 +183,12 @@ const character = (() => {
         }
         mouthLevel += (target - mouthLevel) * 0.45;
         mouthOpen.style.transform = `scale(${0.75 + mouthLevel * 0.25}, ${Math.max(0.12, mouthLevel)})`;
+
+        // 写真モードでは口が動かせないので、話している間は写真を弾ませる
+        if (svg.classList.contains('photo-mode')) {
+            talkLevel += ((voiceLevel !== null || speaking ? mouthLevel : 0) - talkLevel) * 0.5;
+            photo.style.transform = `translateY(${-talkLevel * 9}px) scale(${1 + talkLevel * 0.025}, ${1 - talkLevel * 0.012})`;
+        }
 
         requestAnimationFrame(frame);
     }
@@ -1133,6 +1142,8 @@ document.getElementById('ttsPreviewBtn').addEventListener('click', () => {
 
 document.getElementById('settingsBtn').addEventListener('click', () => {
     setAppearanceStatus(APPEARANCE_STATUS_DEFAULT);
+    setPhotoStatus(PHOTO_STATUS_DEFAULT);
+    closeCrop();
     fillVoiceOptions(settings.ttsVoice);
     ttsEngineSelect.value = settings.ttsEngine;
     voicevoxUrlInput.value = settings.voicevoxUrl;
@@ -1234,6 +1245,148 @@ appearanceResetBtn.addEventListener('click', () => {
     setAppearanceStatus('最初の見た目に戻しました。', false, { notice: true });
 });
 
+// ===== 写真をキャラにする =====
+function applyPhoto(dataUrl) {
+    const svg = document.getElementById('character');
+    const img = document.getElementById('photoImage');
+    if (dataUrl) img.setAttribute('href', dataUrl);
+    else img.removeAttribute('href');
+    svg.classList.toggle('photo-mode', Boolean(dataUrl));
+}
+
+const photoInput = document.getElementById('photoInput');
+const photoClearBtn = document.getElementById('photoClearBtn');
+const photoStatus = document.getElementById('photoStatus');
+const cropArea = document.getElementById('cropArea');
+const cropCanvas = document.getElementById('cropCanvas');
+const cropZoom = document.getElementById('cropZoom');
+const PHOTO_STATUS_DEFAULT = photoStatus.textContent;
+
+function setPhotoStatus(text, isError = false) {
+    photoStatus.textContent = text;
+    photoStatus.classList.toggle('error', isError);
+}
+
+// 切り抜き：写真を枠いっぱいに表示し、ドラッグで移動・スライダーで拡大する
+const crop = {
+    img: null,
+    zoom: 1,
+    cx: 0.5, // 枠の中心に来る写真上の位置（0〜1）
+    cy: 0.5,
+    baseScale() {
+        return Math.max(cropCanvas.width / this.img.naturalWidth, cropCanvas.height / this.img.naturalHeight);
+    },
+    // 枠からはみ出さないように中心位置を制限する
+    clampCenter() {
+        const s = this.baseScale() * this.zoom;
+        const halfW = cropCanvas.width / 2 / (this.img.naturalWidth * s);
+        const halfH = cropCanvas.height / 2 / (this.img.naturalHeight * s);
+        this.cx = clamp(this.cx, halfW, 1 - halfW);
+        this.cy = clamp(this.cy, halfH, 1 - halfH);
+    },
+    draw(canvas = cropCanvas) {
+        const g = canvas.getContext('2d');
+        const k = canvas.width / cropCanvas.width;
+        const s = this.baseScale() * this.zoom * k;
+        const w = this.img.naturalWidth * s;
+        const h = this.img.naturalHeight * s;
+        g.fillStyle = '#111';
+        g.fillRect(0, 0, canvas.width, canvas.height);
+        g.drawImage(this.img, canvas.width / 2 - this.cx * w, canvas.height / 2 - this.cy * h, w, h);
+    },
+};
+
+photoInput.addEventListener('change', () => {
+    const file = photoInput.files?.[0];
+    photoInput.value = '';
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+        crop.img = img;
+        crop.zoom = 1;
+        crop.cx = 0.5;
+        crop.cy = 0.4; // 顔は写真の上寄りにあることが多い
+        cropZoom.value = 1;
+        crop.clampCenter();
+        crop.draw();
+        cropArea.hidden = false;
+        setPhotoStatus('枠の中に顔が入るように調整してね。');
+        cropArea.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    };
+    img.onerror = () => {
+        URL.revokeObjectURL(url);
+        setPhotoStatus('この写真は読み込めませんでした。別の写真を選んでね。', true);
+    };
+    img.src = url;
+});
+
+cropZoom.addEventListener('input', () => {
+    if (!crop.img) return;
+    crop.zoom = Number(cropZoom.value);
+    crop.clampCenter();
+    crop.draw();
+});
+
+let dragFrom = null;
+cropCanvas.addEventListener('pointerdown', (e) => {
+    if (!crop.img) return;
+    cropCanvas.setPointerCapture(e.pointerId);
+    dragFrom = { x: e.clientX, y: e.clientY, cx: crop.cx, cy: crop.cy };
+});
+cropCanvas.addEventListener('pointermove', (e) => {
+    if (!dragFrom) return;
+    // 画面上の移動量を、写真上の位置（0〜1）の移動量に直す
+    const rect = cropCanvas.getBoundingClientRect();
+    const s = crop.baseScale() * crop.zoom * (rect.width / cropCanvas.width);
+    crop.cx = dragFrom.cx - (e.clientX - dragFrom.x) / (crop.img.naturalWidth * s);
+    crop.cy = dragFrom.cy - (e.clientY - dragFrom.y) / (crop.img.naturalHeight * s);
+    crop.clampCenter();
+    crop.draw();
+});
+const endDrag = () => { dragFrom = null; };
+cropCanvas.addEventListener('pointerup', endDrag);
+cropCanvas.addEventListener('pointercancel', endDrag);
+
+function closeCrop() {
+    if (crop.img) URL.revokeObjectURL(crop.img.src);
+    crop.img = null;
+    cropArea.hidden = true;
+}
+
+document.getElementById('cropCancelBtn').addEventListener('click', () => {
+    closeCrop();
+    setPhotoStatus(PHOTO_STATUS_DEFAULT);
+});
+
+document.getElementById('cropApplyBtn').addEventListener('click', () => {
+    if (!crop.img) return;
+    const out = document.createElement('canvas');
+    out.width = cropCanvas.width;
+    out.height = cropCanvas.height;
+    crop.draw(out);
+    const dataUrl = out.toDataURL('image/jpeg', 0.85);
+    try {
+        localStorage.setItem(STORAGE_KEYS.photo, dataUrl);
+    } catch {
+        setPhotoStatus('写真を保存できませんでした（ブラウザの保存容量が足りないかも）。今回だけ表示します。', true);
+        applyPhoto(dataUrl);
+        closeCrop();
+        return;
+    }
+    applyPhoto(dataUrl);
+    closeCrop();
+    character.setEmotion('happy', { holdMs: 4000 });
+    setPhotoStatus('写真をキャラにしました！「イラストに戻す」でいつでも戻せます。');
+});
+
+photoClearBtn.addEventListener('click', () => {
+    try { localStorage.removeItem(STORAGE_KEYS.photo); } catch { /* 無視 */ }
+    applyPhoto(null);
+    closeCrop();
+    setPhotoStatus('イラストに戻しました。');
+});
+
 document.getElementById('clearHistoryBtn').addEventListener('click', () => {
     if (!confirm('会話履歴をすべて削除しますか？')) return;
     history = [];
@@ -1271,6 +1424,7 @@ document.getElementById('clearHistoryBtn').addEventListener('click', () => {
 
 // ===== 起動 =====
 applyAppearance(settings.appearance);
+try { applyPhoto(localStorage.getItem(STORAGE_KEYS.photo)); } catch { /* 保存領域が使えない */ }
 renderHistory();
 if (!settings.apiKey) {
     addMessage('system', 'デモモードで動作中です。右上の ⚙ から Anthropic API キーを設定すると AI と会話できます。');

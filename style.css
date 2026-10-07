@@ -109,6 +109,14 @@ button { font: inherit; cursor: pointer; }
     50% { transform: rotate(6deg); }
 }
 
+/* 写真モード：イラストの顔や体を隠し、写真・エフェクト・猫耳だけを表示する */
+.character .photo-avatar { display: none; transform-box: fill-box; transform-origin: 50% 100%; }
+.character.photo-mode .photo-avatar { display: inline; }
+.character.photo-mode #body > :not(#head),
+.character.photo-mode #head > :not(.photo-avatar):not(.fx):not(.cat-ears) { display: none !important; }
+.character.photo-mode .fx-sad path:first-child { display: none; } /* 写真の上では涙の位置が合わないので汗だけ */
+.character.photo-mode .cat-ears { transform: translateY(-40px); } /* 写真の枠の上に耳を出す */
+
 /* 既定状態：ふつう */
 .character .eye-closed,
 .character .eye-happy,
@@ -397,6 +405,39 @@ button { font: inherit; cursor: pointer; }
 .settings .voice-settings .note code { font-size: 11px; word-break: break-all; color: var(--text); }
 .settings label.range output { float: right; color: var(--text); }
 .settings input[type="range"] { padding: 0; border: none; background: none; accent-color: var(--accent); }
+.settings .photo-settings {
+    margin: 0 0 16px;
+    padding: 12px 12px 2px;
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+}
+.settings .photo-settings legend { padding: 0 6px; font-size: 13px; color: var(--muted); }
+.settings .photo-settings .note { margin: 0 0 10px; }
+.settings .photo-settings .note.error { color: #ffb3c2; }
+.photo-pick { justify-content: flex-start; }
+.settings input[type="file"] { display: none; }
+.settings label.file-btn {
+    display: inline-block;
+    margin: 0;
+    padding: 7px 12px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.crop canvas {
+    display: block;
+    width: min(240px, 100%);
+    aspect-ratio: 276 / 316;
+    margin: 4px auto 10px;
+    border-radius: 36px;
+    border: 3px solid #ff8fb8;
+    background: #111;
+    touch-action: none;
+    cursor: grab;
+}
 .dialog-actions { display: flex; gap: 8px; align-items: center; }
 .dialog-actions .spacer { flex: 1; }
 .dialog-actions button {
