@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>AI VTuber Chat</title>
     <meta name="theme-color" content="#1b1530">
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
     <script type="importmap">
     {
         "imports": {
@@ -300,6 +300,22 @@
                 </div>
                 <p class="note" id="appearanceStatus">AIが髪型・色・アクセサリーを決めて、すぐに反映します（APIキーが必要です。1回あたりの料金はメッセージ1通と同程度）。</p>
             </fieldset>
+            <fieldset class="voice-settings" id="voiceSettings">
+                <legend>読み上げの声</legend>
+                <label>声の種類
+                    <select id="ttsVoiceSelect"></select>
+                </label>
+                <label class="range">話す速さ <output id="ttsRateValue"></output>
+                    <input type="range" id="ttsRateInput" min="0.7" max="1.5" step="0.05">
+                </label>
+                <label class="range">声の高さ <output id="ttsPitchValue"></output>
+                    <input type="range" id="ttsPitchInput" min="0.5" max="1.8" step="0.05">
+                </label>
+                <div class="appearance-actions">
+                    <button type="button" id="ttsPreviewBtn">▶ 試しに聞く</button>
+                </div>
+                <p class="note">使える声は端末やブラウザによって違います。高さを上げすぎると機械っぽくなるので、1.0〜1.2くらいがおすすめです。</p>
+            </fieldset>
             <div class="dialog-actions">
                 <button type="button" id="clearHistoryBtn" class="danger">会話をリセット</button>
                 <span class="spacer"></span>
@@ -309,6 +325,6 @@
         </form>
     </dialog>
 
-    <script type="module" src="app.js?v=4"></script>
+    <script type="module" src="app.js?v=5"></script>
 </body>
 </html>

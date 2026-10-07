@@ -382,6 +382,17 @@ button { font: inherit; cursor: pointer; }
     60% { transform: translateX(-3px); }
     80% { transform: translateX(3px); }
 }
+.settings .voice-settings {
+    margin: 0 0 16px;
+    padding: 12px 12px 2px;
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+}
+.settings .voice-settings legend { padding: 0 6px; font-size: 13px; color: var(--muted); }
+.settings .voice-settings label { margin-bottom: 8px; }
+.settings .voice-settings .note { margin: 0 0 10px; }
+.settings label.range output { float: right; color: var(--text); }
+.settings input[type="range"] { padding: 0; border: none; background: none; accent-color: var(--accent); }
 .dialog-actions { display: flex; gap: 8px; align-items: center; }
 .dialog-actions .spacer { flex: 1; }
 .dialog-actions button {

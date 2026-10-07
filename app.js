@@ -16,6 +16,9 @@ const DEFAULT_SETTINGS = {
     charName: 'ルミ',
     persona: DEFAULT_PERSONA,
     tts: false,
+    ttsVoice: '', // voiceURI。空なら自動で選ぶ
+    ttsRate: 1.05,
+    ttsPitch: 1.1,
     appearance: null, // null のときは DEFAULT_APPEARANCE
 };
 
@@ -243,39 +246,30 @@ function createTypewriter(bubble, { onDone } = {}) {
     let shown = '';
     let finished = false;
     let timer = null;
-    let speech = '';
 
     function tick() {
         if (!queue.length) {
             timer = null;
             if (!isSpeaking()) character.setSpeaking(false);
             if (finished) {
-                flushSpeech();
+                tts.flush();
                 onDone?.();
             }
             return;
         }
         const item = queue.shift();
         if (item.type === 'emotion') {
-            flushSpeech();
             character.setEmotion(item.name);
         } else {
             character.setSpeaking(true);
             shown += item.ch;
-            speech += item.ch;
+            tts.feed(item.ch);
             bubble.textContent = shown.replace(/^\s+/, '');
             scrollToBottom();
-            if (/[。！？!?\n]/.test(item.ch)) flushSpeech();
         }
         // 句読点では少し間をとる
         const delay = item.type === 'text' && /[、。！？!?…]/.test(item.ch) ? 140 : 32;
         timer = setTimeout(tick, delay);
-    }
-
-    function flushSpeech() {
-        const s = speech.trim();
-        speech = '';
-        if (s) tts.speak(s);
     }
 
     function kick() {
@@ -299,34 +293,101 @@ function createTypewriter(bubble, { onDone } = {}) {
 }
 
 // ===== 読み上げ（Web Speech API） =====
+// 端末に入っている日本語音声で読み上げる。細切れにすると不自然なので、
+// 文（。や改行）単位にまとめてから話す。
 const tts = (() => {
     const supported = 'speechSynthesis' in window;
-    let voice = null;
+    let voices = [];
+    let buffer = '';
 
-    function pickVoice() {
-        const voices = speechSynthesis.getVoices();
-        voice = voices.find((v) => v.lang === 'ja-JP' && /female|Kyoko|Nanami|Haruka/i.test(v.name))
-            || voices.find((v) => v.lang.startsWith('ja')) || null;
+    // 自然に聞こえやすい音声を優先する（端末やブラウザによって入っている音声は異なる）
+    const PREFERRED = [/Natural/i, /Nanami/i, /Google/i, /Kyoko/i, /O-?ren/i, /Haruka/i, /Ayumi/i];
+
+    function loadVoices() {
+        voices = speechSynthesis.getVoices().filter((v) => v.lang.replace('_', '-').startsWith('ja'));
     }
     if (supported) {
-        pickVoice();
-        speechSynthesis.addEventListener?.('voiceschanged', pickVoice);
+        loadVoices();
+        speechSynthesis.addEventListener?.('voiceschanged', loadVoices);
+    }
+
+    function pickVoice(uri) {
+        if (uri) {
+            const v = voices.find((x) => x.voiceURI === uri);
+            if (v) return v;
+        }
+        for (const re of PREFERRED) {
+            const v = voices.find((x) => re.test(x.name));
+            if (v) return v;
+        }
+        return voices[0] || null;
+    }
+
+    // 読み上げで変な間や読み方になる記号を整える
+    function normalize(text) {
+        return text
+            .replace(/[〜～]+/g, 'ー')
+            .replace(/…+|\.{2,}/g, '、')
+            .replace(/[！!]+/g, '！')
+            .replace(/[？?]+[！!]*|[！!]+[？?]+/g, '？')
+            .replace(/([、。？！])、+/g, '$1')
+            .replace(/^、+/, '')
+            .replace(/[wｗ]{2,}/g, '')
+            .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function say(text, { rate = settings.ttsRate, pitch = settings.ttsPitch, voiceURI = settings.ttsVoice } = {}) {
+        const t = normalize(text);
+        if (!t) return;
+        const u = new SpeechSynthesisUtterance(t);
+        u.lang = 'ja-JP';
+        const v = pickVoice(voiceURI);
+        if (v) u.voice = v;
+        u.rate = rate;
+        u.pitch = pitch;
+        u.onstart = () => character.setSpeaking(true);
+        u.onend = () => { if (!speechSynthesis.speaking) character.setSpeaking(false); };
+        speechSynthesis.speak(u);
+    }
+
+    // 読み上げに失敗しても、チャットの表示は止めない
+    function safeSay(text, options) {
+        try {
+            say(text, options);
+        } catch (err) {
+            console.warn('読み上げに失敗しました', err);
+        }
+    }
+
+    function flush() {
+        const t = buffer;
+        buffer = '';
+        if (supported && settings.tts && t.trim()) safeSay(t);
     }
 
     return {
         supported,
-        speak(text) {
-            if (!supported || !settings.tts) return;
-            const u = new SpeechSynthesisUtterance(text);
-            u.lang = 'ja-JP';
-            if (voice) u.voice = voice;
-            u.pitch = 1.35;
-            u.rate = 1.1;
-            u.onstart = () => character.setSpeaking(true);
-            u.onend = () => { if (!speechSynthesis.speaking) character.setSpeaking(false); };
-            speechSynthesis.speak(u);
+        get voices() { return voices; },
+        pickVoice,
+        // 文字送りから1文字ずつ受け取り、文の切れ目でまとめて話す
+        feed(ch) {
+            buffer += ch;
+            const len = buffer.trim().length;
+            if (/[。\n]/.test(ch)) flush();
+            else if (/[！？!?]/.test(ch) && len >= 20) flush();
+            else if (/[、，,]/.test(ch) && len >= 60) flush(); // 長すぎると途中で止まるブラウザがある
+        },
+        flush,
+        // 設定画面の「試しに聞く」用
+        preview(text, options) {
+            if (!supported) return;
+            speechSynthesis.cancel();
+            safeSay(text, options);
         },
         cancel() {
+            buffer = '';
             if (supported) speechSynthesis.cancel();
         },
     };
@@ -798,8 +859,49 @@ const modelSelect = document.getElementById('modelSelect');
 const charNameInput = document.getElementById('charNameInput');
 const personaInput = document.getElementById('personaInput');
 
+// 読み上げの声の設定
+const voiceSettings = document.getElementById('voiceSettings');
+const ttsVoiceSelect = document.getElementById('ttsVoiceSelect');
+const ttsRateInput = document.getElementById('ttsRateInput');
+const ttsPitchInput = document.getElementById('ttsPitchInput');
+const ttsRateValue = document.getElementById('ttsRateValue');
+const ttsPitchValue = document.getElementById('ttsPitchValue');
+if (!tts.supported) voiceSettings.hidden = true;
+
+function fillVoiceOptions(selected) {
+    ttsVoiceSelect.innerHTML = '';
+    const auto = tts.pickVoice('');
+    ttsVoiceSelect.add(new Option(`自動（おすすめ）${auto ? `：${auto.name}` : ''}`, ''));
+    for (const v of tts.voices) ttsVoiceSelect.add(new Option(v.name, v.voiceURI));
+    if (!tts.voices.length) ttsVoiceSelect.add(new Option('日本語の声が見つかりません', '', false, false));
+    ttsVoiceSelect.value = tts.voices.some((v) => v.voiceURI === selected) ? selected : '';
+}
+function showRangeValues() {
+    ttsRateValue.textContent = Number(ttsRateInput.value).toFixed(2);
+    ttsPitchValue.textContent = Number(ttsPitchInput.value).toFixed(2);
+}
+ttsRateInput.addEventListener('input', showRangeValues);
+ttsPitchInput.addEventListener('input', showRangeValues);
+if (tts.supported) {
+    // 声の一覧は後から読み込まれることがある
+    speechSynthesis.addEventListener?.('voiceschanged', () => {
+        if (dialog.open) fillVoiceOptions(ttsVoiceSelect.value);
+    });
+}
+document.getElementById('ttsPreviewBtn').addEventListener('click', () => {
+    tts.preview(`こんにちは！${charNameInput.value.trim() || settings.charName}だよ。今日はどんなお話しようか？`, {
+        voiceURI: ttsVoiceSelect.value,
+        rate: Number(ttsRateInput.value),
+        pitch: Number(ttsPitchInput.value),
+    });
+});
+
 document.getElementById('settingsBtn').addEventListener('click', () => {
     setAppearanceStatus(APPEARANCE_STATUS_DEFAULT);
+    fillVoiceOptions(settings.ttsVoice);
+    ttsRateInput.value = settings.ttsRate;
+    ttsPitchInput.value = settings.ttsPitch;
+    showRangeValues();
     apiKeyInput.value = settings.apiKey;
     modelSelect.value = settings.model;
     charNameInput.value = settings.charName;
@@ -813,6 +915,9 @@ dialog.addEventListener('close', () => {
     settings.model = modelSelect.value;
     settings.charName = charNameInput.value.trim() || DEFAULT_SETTINGS.charName;
     settings.persona = personaInput.value.trim() || DEFAULT_PERSONA;
+    settings.ttsVoice = ttsVoiceSelect.value;
+    settings.ttsRate = Number(ttsRateInput.value);
+    settings.ttsPitch = Number(ttsPitchInput.value);
     saveJSON(STORAGE_KEYS.settings, settings);
     renderHistory();
 });
