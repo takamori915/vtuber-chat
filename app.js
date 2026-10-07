@@ -1,5 +1,6 @@
-import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=13';
-import { createBodyRig, danceAngles } from './body-rig.js?v=13';
+import { processPhoto, createPhotoRenderer } from './photo-avatar.js?v=14';
+import { createBodyRig, danceAngles } from './body-rig.js?v=14';
+import { createDanceVideoPlayer, saveDanceVideo, loadDanceVideo, deleteDanceVideo } from './dance-video.js?v=14';
 
 // ===== 設定・定数 =====
 const STORAGE_KEYS = {
@@ -87,8 +88,34 @@ const character = (() => {
     let danceStart = -1;
     let danceEnd = -1;
 
+    const videoLayer = document.getElementById('videoLayer');
+    const videoPlayer = createDanceVideoPlayer(document.getElementById('danceCanvas'));
+
+    // 登録した動画で踊る（写真やイラストの代わりに、動画を最後まで流す）
+    async function playVideoDance() {
+        danceEnd = -1;
+        setEmotion('happy', { holdMs: 3000 });
+        videoLayer.hidden = false;
+        wrap0.classList.add('video-dancing');
+        try {
+            await videoPlayer.play();
+        } catch (err) {
+            console.warn('踊りの動画を再生できませんでした', err);
+            videoLayer.hidden = true;
+            wrap0.classList.remove('video-dancing');
+            dance(8000, { useVideo: false });
+            return;
+        }
+        videoLayer.hidden = true;
+        wrap0.classList.remove('video-dancing');
+    }
+
     // 踊る（続けて頼まれたら延長する）
-    function dance(ms = 8000) {
+    function dance(ms = 8000, { useVideo = true } = {}) {
+        if (useVideo && videoPlayer.ready) {
+            playVideoDance();
+            return;
+        }
         const now = performance.now();
         if (danceEnd < 0 || now > danceEnd) danceStart = now;
         danceEnd = now + ms;
@@ -305,6 +332,7 @@ const character = (() => {
         setVoiceLevel(v) { voiceLevel = v; },
         photo: photoRenderer,
         body: bodyRig,
+        danceVideo: videoPlayer,
         lookAt,
         get emotion() { return emotion; },
     };
@@ -1258,6 +1286,7 @@ document.getElementById('settingsBtn').addEventListener('click', () => {
     setAppearanceStatus(APPEARANCE_STATUS_DEFAULT);
     setPhotoStatus(PHOTO_STATUS_DEFAULT);
     closeCrop();
+    refreshDanceVideoUI();
     fillVoiceOptions(settings.ttsVoice);
     ttsEngineSelect.value = settings.ttsEngine;
     voicevoxUrlInput.value = settings.voicevoxUrl;
@@ -1543,6 +1572,67 @@ photoClearBtn.addEventListener('click', () => {
     setPhotoStatus('イラストに戻しました。');
 });
 
+// ===== 踊るときの動画 =====
+const danceVideoInput = document.getElementById('danceVideoInput');
+const danceChromaCheck = document.getElementById('danceChromaCheck');
+const danceSoundCheck = document.getElementById('danceSoundCheck');
+const danceVideoStatus = document.getElementById('danceVideoStatus');
+const DANCE_VIDEO_HELP = 'AIで作った踊りの動画などを登録すると、「踊って」と言われたときに人物だけ切り抜いて再生します。動画はこの端末のブラウザの中だけに保存されます。';
+
+function setDanceVideoStatus(text, isError = false) {
+    danceVideoStatus.textContent = text;
+    danceVideoStatus.classList.toggle('error', isError);
+}
+
+async function refreshDanceVideoUI() {
+    const r = await loadDanceVideo();
+    if (r) {
+        danceChromaCheck.checked = Boolean(r.chroma);
+        danceSoundCheck.checked = r.sound !== false;
+        setDanceVideoStatus(`登録中の動画：${r.name || '動画'}。チャットで「踊って」と送ると再生されます。`);
+    } else {
+        setDanceVideoStatus(DANCE_VIDEO_HELP);
+    }
+}
+
+danceVideoInput.addEventListener('change', async () => {
+    const file = danceVideoInput.files?.[0];
+    danceVideoInput.value = '';
+    if (!file) return;
+    if (file.size > 80 * 1024 * 1024) {
+        setDanceVideoStatus('動画が大きすぎます（80MBまで）。短く切ってから選んでね。', true);
+        return;
+    }
+    const record = { blob: file, name: file.name, chroma: danceChromaCheck.checked, sound: danceSoundCheck.checked };
+    setDanceVideoStatus('登録しています…');
+    try {
+        await character.danceVideo.setRecord(record);
+        await saveDanceVideo(record);
+        setDanceVideoStatus(`登録しました！（${file.name}）チャットで「踊って」と送ると再生されます。`);
+    } catch (err) {
+        console.warn(err);
+        await character.danceVideo.setRecord(null).catch(() => {});
+        setDanceVideoStatus('この動画は使えませんでした。別の動画（MP4など）を選んでね。', true);
+    }
+});
+
+async function updateDanceVideoOptions() {
+    const r = await loadDanceVideo();
+    if (!r) return;
+    r.chroma = danceChromaCheck.checked;
+    r.sound = danceSoundCheck.checked;
+    await saveDanceVideo(r);
+    await character.danceVideo.setRecord(r);
+}
+danceChromaCheck.addEventListener('change', updateDanceVideoOptions);
+danceSoundCheck.addEventListener('change', updateDanceVideoOptions);
+
+document.getElementById('danceVideoClearBtn').addEventListener('click', async () => {
+    await deleteDanceVideo().catch(() => {});
+    await character.danceVideo.setRecord(null);
+    setDanceVideoStatus('動画を外しました。踊るときは写真やイラストが動きます。');
+});
+
 document.getElementById('clearHistoryBtn').addEventListener('click', () => {
     if (!confirm('会話履歴をすべて削除しますか？')) return;
     history = [];
@@ -1581,6 +1671,7 @@ document.getElementById('clearHistoryBtn').addEventListener('click', () => {
 // ===== 起動 =====
 applyAppearance(settings.appearance);
 applyPhoto(loadSavedPhoto());
+loadDanceVideo().then((r) => r && character.danceVideo.setRecord(r)).catch((err) => console.warn('踊りの動画を読み込めませんでした', err));
 renderHistory();
 if (!settings.apiKey) {
     addMessage('system', 'デモモードで動作中です。右上の ⚙ から Anthropic API キーを設定すると AI と会話できます。');

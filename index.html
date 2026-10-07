@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>AI VTuber Chat</title>
     <meta name="theme-color" content="#1b1530">
-    <link rel="stylesheet" href="style.css?v=13">
+    <link rel="stylesheet" href="style.css?v=14">
     <script type="importmap">
     {
         "imports": {
@@ -26,6 +26,10 @@
         <div class="character-wrap" id="characterWrap">
           <!-- 踊るときはこの箱ごと動かす -->
           <div class="dance-box" id="danceBox">
+            <!-- 踊るときの動画（登録したときだけ、踊る間だけ表示） -->
+            <div class="video-layer" id="videoLayer" hidden>
+                <canvas id="danceCanvas"></canvas>
+            </div>
             <!-- 写真キャラ（イラストの代わりに表示） -->
             <div class="photo-layer" id="photoLayer" hidden>
                 <div class="photo-move" id="photoMove">
@@ -335,6 +339,18 @@
                 </div>
                 <p class="note" id="photoStatus">写真はこの端末のブラウザの中だけで処理・保存され、AIや外部には送られません（初回だけ、切り抜き用のデータ約40MBをダウンロードするので Wi-Fi がおすすめです）。</p>
             </fieldset>
+            <fieldset class="photo-settings">
+                <legend>踊るときの動画</legend>
+                <div class="appearance-actions photo-pick">
+                    <label class="file-btn">🎬 動画を選ぶ
+                        <input type="file" id="danceVideoInput" accept="video/*" hidden>
+                    </label>
+                    <button type="button" id="danceVideoClearBtn">動画を外す</button>
+                </div>
+                <label class="check"><input type="checkbox" id="danceChromaCheck"> 緑の背景を消す（グリーンバックの動画）</label>
+                <label class="check"><input type="checkbox" id="danceSoundCheck" checked> 動画の音も流す</label>
+                <p class="note" id="danceVideoStatus"></p>
+            </fieldset>
             <fieldset class="voice-settings" id="voiceSettings">
                 <legend>読み上げの声</legend>
                 <label>読み上げに使うもの
@@ -380,6 +396,6 @@
         </form>
     </dialog>
 
-    <script type="module" src="app.js?v=13"></script>
+    <script type="module" src="app.js?v=14"></script>
 </body>
 </html>

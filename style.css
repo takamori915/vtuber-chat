@@ -123,6 +123,19 @@ button { font: inherit; cursor: pointer; }
 }
 .character-wrap.react .photo-layer { animation: react 0.45s ease-out; }
 .photo-layer canvas { filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.3)); } /* 背景から少し浮かせる */
+/* 踊るときの動画：チャット欄より上に収まるように置く */
+.video-layer { position: absolute; inset: 0; }
+.video-layer canvas {
+    position: absolute;
+    left: 50%;
+    bottom: 30%;
+    height: 68%;
+    max-width: 100%;
+    transform: translateX(-50%);
+    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.3));
+}
+.character-wrap.video-dancing .photo-layer,
+.character-wrap.video-dancing .character { visibility: hidden; }
 
 /* 既定状態：ふつう */
 .character .eye-closed,
