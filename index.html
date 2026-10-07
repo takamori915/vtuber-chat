@@ -71,6 +71,15 @@
                         <stop offset="0" stop-color="#34305e"/>
                         <stop offset="1" stop-color="#211e3f"/>
                     </linearGradient>
+                    <!-- ネオンの光（服のライン用） -->
+                    <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="2.4" result="blur"/>
+                        <feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <linearGradient id="armorShine" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0" stop-color="#ffffff" stop-opacity=".7"/>
+                        <stop offset=".5" stop-color="#ffffff" stop-opacity="0"/>
+                    </linearGradient>
                     <clipPath id="eyeClip">
                         <ellipse rx="23" ry="28"/>
                     </clipPath>
@@ -79,17 +88,38 @@
                 <g id="body" class="body">
                     <!-- ロングヘア（髪型が long のときだけ表示。胴体より後ろに描く） -->
                     <path class="long-hair" fill="url(#hairGrad)" style="display:none" d="M112 200 C96 300 92 400 104 488 Q128 472 150 490 L250 490 Q272 472 296 488 C308 400 304 300 288 200 Z"/>
-                    <!-- 胴体（セーラー服） -->
+                    <!-- 胴体（近未来スーツ） -->
                     <path fill="url(#outfitGrad)" d="M120 520 C118 440 148 378 200 372 C252 378 282 440 280 520 Z"/>
                     <path class="skin" fill="#ffe6dc" d="M184 316 L216 316 L218 372 C207 381 193 381 182 372 Z"/>
                     <path class="skin-shade" fill="#f3cbbd" d="M184 322 Q200 340 216 322 L216 338 Q200 350 184 338 Z"/>
-                    <path class="collar" fill="#fdfbff" d="M150 380 L200 432 L250 380 L272 398 L200 470 L128 398 Z"/>
-                    <path class="accent-stroke" fill="none" stroke="#ff8fb8" stroke-width="3" d="M138 400 L200 462 L262 400"/>
-                    <!-- 胸元のリボン -->
-                    <g transform="translate(200 430)">
-                        <path class="accent" fill="#ff6fa5" d="M0 0 L-24 -12 Q-30 0 -24 12 Z M0 0 L24 -12 Q30 0 24 12 Z"/>
-                        <path class="accent" fill="#ff6fa5" d="M-4 2 L-12 30 L-2 24 Z M4 2 L12 30 L2 24 Z"/>
-                        <circle class="accent-light" r="6" fill="#ff8fb8"/>
+                    <!-- 胸の中央パネルと継ぎ目 -->
+                    <path fill="#ffffff" opacity=".07" d="M180 396 L220 396 L236 520 L164 520 Z"/>
+                    <path fill="none" stroke="#000" stroke-opacity=".25" stroke-width="1.5" d="M180 396 L164 520 M220 396 L236 520"/>
+                    <!-- 光るライン -->
+                    <g class="neon" filter="url(#neonGlow)" fill="none" stroke-linecap="round">
+                        <path class="accent-stroke" stroke="#7fe9ff" stroke-width="2.6" d="M200 410 L200 520"/>
+                        <path class="accent-stroke" stroke="#7fe9ff" stroke-width="2.4" d="M150 520 C150 482 160 452 178 430 M250 520 C250 482 240 452 222 430"/>
+                        <path class="accent-stroke" stroke="#7fe9ff" stroke-width="2" d="M172 470 L186 484 L186 520 M228 470 L214 484 L214 520"/>
+                    </g>
+                    <!-- 肩のアーマー -->
+                    <path class="collar" fill="#e6ecf5" d="M124 452 C124 412 148 386 178 382 L184 402 C160 406 144 426 140 456 Z"/>
+                    <path class="collar" fill="#e6ecf5" d="M276 452 C276 412 252 386 222 382 L216 402 C240 406 256 426 260 456 Z"/>
+                    <path fill="url(#armorShine)" d="M128 440 C130 414 148 392 172 388 L174 394 C152 400 138 418 134 442 Z"/>
+                    <path fill="url(#armorShine)" d="M272 440 C270 414 252 392 228 388 L226 394 C248 400 262 418 266 442 Z"/>
+                    <g class="neon" filter="url(#neonGlow)" fill="none" stroke-linecap="round">
+                        <path class="accent-stroke" stroke="#7fe9ff" stroke-width="2.2" d="M134 446 C136 424 150 406 172 398 M266 446 C264 424 250 406 228 398"/>
+                    </g>
+                    <!-- ハイネックの襟 -->
+                    <path class="collar" fill="#e6ecf5" d="M178 350 Q200 360 222 350 L230 386 Q200 400 170 386 Z"/>
+                    <path fill="#000" opacity=".12" d="M178 350 Q200 360 222 350 L223 356 Q200 366 177 356 Z"/>
+                    <g class="neon" filter="url(#neonGlow)" fill="none" stroke-linecap="round">
+                        <path class="accent-stroke" stroke="#7fe9ff" stroke-width="2.4" d="M174 380 Q200 393 226 380"/>
+                    </g>
+                    <!-- 胸のエンブレム（光る六角形） -->
+                    <g transform="translate(200 440)">
+                        <path class="accent" fill="#3fe0ff" filter="url(#neonGlow)" d="M0 -15 L13 -7.5 L13 7.5 L0 15 L-13 7.5 L-13 -7.5 Z"/>
+                        <path fill="#1a2238" d="M0 -10 L8.7 -5 L8.7 5 L0 10 L-8.7 5 L-8.7 -5 Z"/>
+                        <path class="accent-light" fill="#9df0ff" d="M0 -5.5 L4.8 -2.75 L4.8 2.75 L0 5.5 L-4.8 2.75 L-4.8 -2.75 Z"/>
                     </g>
 
                     <!-- 頭（後ろ髪・ツインテールも一緒に動く） -->
@@ -396,6 +426,6 @@
         </form>
     </dialog>
 
-    <script type="module" src="app.js?v=15"></script>
+    <script type="module" src="app.js?v=16"></script>
 </body>
 </html>
